@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Modal from './Modal'
-import { Alert, extractErrorMsg } from './Alert'
+import { Alert } from '../components/Alert'
+import { extractErrorMsg } from '../utils/errorUtils'
 import { Spinner } from './Loading'
 import { criarJogo, editarJogo } from '../services/jogosService'
 import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StarPicker } from './StarRating'
-import { Alert } from './Alert'
+import { Alert } from '../components/Alert'
 import { extractErrorMsg } from '../utils/errorUtils'
 import { Spinner } from './Loading'
 import { editarReview, deletarReview } from '../services/reviewsService'
