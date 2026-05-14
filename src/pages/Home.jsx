@@ -7,7 +7,9 @@ import JogoForm from '../components/JogoForm'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Pagination from '../components/Pagination'
 import { SkeletonGrid } from '../components/Loading'
-import { Alert, extractErrorMsg } from '../components/Alert'
+import { Alert } from "../components/Alert"
+import { extractErrorMsg } from '../utils/errorUtils'
+
 
 const PAGE_SIZE = 9
 
