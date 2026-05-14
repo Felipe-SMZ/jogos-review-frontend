@@ -11,10 +11,13 @@ function parseToken(token) {
       localStorage.removeItem('token')
       return null
     }
-    return {
-      email: decoded.sub,
-      role: decoded.role || decoded.roles?.[0] || '',
-    }
+
+    const id = decoded.id ?? decoded.userId ?? decoded.usuario?.id ?? null
+    const email = decoded.email ?? decoded.sub ?? null
+    const role = decoded.role || decoded.roles?.[0] || ''
+    const usuario = decoded.usuario ?? null
+
+    return { id, email, role, usuario }
   } catch {
     return null
   }

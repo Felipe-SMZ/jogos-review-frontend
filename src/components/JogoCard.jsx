@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
-import { StarDisplay } from './StarRating'
 import { useAuth } from '../context/AuthContext'
 
 export default function JogoCard({ jogo, media, onEdit, onDelete }) {
@@ -8,8 +7,7 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
 
   const hasReviews =
     media !== null &&
-    media !== undefined &&
-    Number(media) > 0
+    media !== undefined
 
   return (
     <div
@@ -48,24 +46,25 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
         }}
       />
 
-      {/* CONTENT */}
+      {/* Content */}
       <div
         style={{
           position: 'relative',
           zIndex: 2,
+
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
         }}
       >
-        {/* TOP */}
+        {/* Top */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
             gap: '1rem',
-            marginBottom: '1.5rem',
+            marginBottom: '1.8rem',
           }}
         >
           {/* Badges */}
@@ -88,55 +87,67 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
           {/* Nota */}
           <div
             style={{
-              minWidth: '86px',
-              minHeight: '74px',
+              width: '68px',
+              height: '68px',
 
-              padding: '0.7rem',
-
-              borderRadius: '16px',
-
-              background: hasReviews
-                ? 'rgba(0,255,170,0.08)'
-                : 'rgba(255,255,255,0.03)',
+              borderRadius: '50%',
 
               border: hasReviews
-                ? '1px solid rgba(0,255,170,0.18)'
-                : '1px solid rgba(255,255,255,0.06)',
+                ? '2px solid #00ffaa'
+                : '2px solid rgba(255,255,255,0.08)',
+
+              background: hasReviews
+                ? 'rgba(0,255,170,0.06)'
+                : 'rgba(255,255,255,0.02)',
 
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center',
               alignItems: 'center',
+              justifyContent: 'center',
 
-              textAlign: 'center',
+              flexShrink: 0,
+
+              boxShadow: hasReviews
+                ? '0 0 16px rgba(0,255,170,0.14)'
+                : 'none',
             }}
           >
             {hasReviews ? (
               <>
-                <StarDisplay nota={media} size="0.62rem" />
-
                 <span
                   style={{
-                    marginTop: '0.35rem',
-                    color: '#00ffaa',
+                    fontSize: '1.15rem',
                     fontWeight: 800,
-                    fontSize: '1rem',
+                    lineHeight: 1,
+                    color: '#00ffaa',
                     fontFamily: 'JetBrains Mono, monospace',
                   }}
                 >
                   {Number(media).toFixed(1)}
                 </span>
+
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    marginTop: '0.08rem',
+                    color: 'rgba(255,255,255,0.45)',
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                  }}
+                >
+                  /10
+                </span>
               </>
             ) : (
               <span
                 style={{
-                  fontSize: '0.72rem',
-                  lineHeight: 1.3,
-                  color: 'rgba(255,255,255,0.45)',
-                  fontWeight: 600,
+                  fontSize: '1.6rem',
+                  color: 'rgba(255,255,255,0.18)',
+                  lineHeight: 1,
+                  fontWeight: 200,
                 }}
               >
-                Sem avaliações
+                —
               </span>
             )}
           </div>

@@ -10,6 +10,7 @@ export default function Registro() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
+  const [nickname, setNickname] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
@@ -19,14 +20,24 @@ export default function Registro() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email.trim() || !senha.trim() || !confirmar.trim()) { setError('Preencha todos os campos.'); return }
+
+    // Validações atualizadas conforme o DTO
+    if (!nickname.trim() || !email.trim() || !senha.trim() || !confirmar.trim()) {
+      setError('Preencha todos os campos.')
+      return
+    }
+    if (nickname.length < 3 || nickname.length > 30) {
+      setError('O nickname deve ter entre 3 e 30 caracteres.')
+      return
+    }
     if (senha !== confirmar) { setError('As senhas não coincidem.'); return }
-    if (senha.length < 6) { setError('A senha deve ter no mínimo 6 caracteres.'); return }
+    if (senha.length < 8) { setError('A senha deve ter no mínimo 8 caracteres.'); return }
 
     setLoading(true); setError('')
     try {
-      await registrar(email, senha)
-      // Auto-login after register
+
+      await registrar(email, nickname, senha)
+
       const loginRes = await login(email, senha)
       signIn(loginRes.data.token)
       navigate('/')
@@ -36,6 +47,7 @@ export default function Registro() {
       setLoading(false)
     }
   }
+
 
   const passwordStrength = () => {
     if (!senha) return null
@@ -64,6 +76,18 @@ export default function Registro() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.05em' }}>NICKNAME</label>
+              <input
+                className="input"
+                type="text"
+                value={nickname}
+                onChange={e => setNickname(e.target.value)}
+                placeholder="Como quer ser chamado?"
+                autoFocus
+              />
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
               <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.05em' }}>E-MAIL</label>
