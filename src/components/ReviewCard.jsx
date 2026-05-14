@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { StarPicker } from './StarRating'
-import { Alert, extractErrorMsg } from './Alert'
+import { Alert } from './Alert'
+import { extractErrorMsg } from '../utils/errorUtils'
 import { Spinner } from './Loading'
 import { editarReview, deletarReview } from '../services/reviewsService'
 import { useAuth } from '../context/AuthContext'

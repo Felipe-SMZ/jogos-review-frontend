@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 import { jwtDecode } from 'jwt-decode'
 
 const AuthContext = createContext(null)
@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider')

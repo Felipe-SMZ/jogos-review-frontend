@@ -1,17 +1,14 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useState } from 'react'
 
 export default function Navbar() {
   const { isAuthenticated, isAdmin, user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleSignOut = () => {
     signOut()
     navigate('/')
-    setMenuOpen(false)
   }
 
   const isActive = (path) => location.pathname === path

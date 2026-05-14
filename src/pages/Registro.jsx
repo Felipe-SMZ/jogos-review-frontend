@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { registrar } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import { login } from '../services/authService'
-import { Alert, extractErrorMsg } from '../components/Alert'
+import { Alert } from './Alert'
+import { extractErrorMsg } from '../utils/errorUtils'
 import { Spinner } from '../components/Loading'
 
 export default function Registro() {
