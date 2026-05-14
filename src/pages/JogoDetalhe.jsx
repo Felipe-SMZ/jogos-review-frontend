@@ -5,7 +5,7 @@ import { listarReviews, criarReview } from '../services/reviewsService'
 import { GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
 import { useAuth } from '../context/AuthContext'
 import { StarPicker } from '../components/StarRating'
-import { Alert } from './Alert'
+import { Alert } from "../components/Alert"
 import { extractErrorMsg } from '../utils/errorUtils'
 import { PageLoader, Spinner } from '../components/Loading'
 import JogoForm from '../components/JogoForm'

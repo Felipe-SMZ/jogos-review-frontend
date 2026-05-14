@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { login } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
-import { Alert } from './Alert'
+import { Alert } from "../components/Alert"
 import { extractErrorMsg } from '../utils/errorUtils'
 import { Spinner } from '../components/Loading'
 
