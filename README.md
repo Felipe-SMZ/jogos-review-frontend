@@ -1,6 +1,6 @@
 # game-review-frontend
 
-Aplicação frontend React para gerenciamento e visualização de reviews de jogos, consumindo a [jogos-review-api](https://jogos-review-api-production-d522.up.railway.app) hospedada no Railway.
+Aplicação frontend React para gerenciamento e visualização de reviews de jogos, consumindo a [jogos-review-api](https://jogos-review-api.onrender.com) hospedada no Render.
 
 **Demo:** [jogos-review-frontend.vercel.app](https://jogos-review-frontend.vercel.app)
 
