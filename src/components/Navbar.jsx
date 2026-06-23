@@ -15,7 +15,16 @@ export default function Navbar() {
 
   return (
     <header style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-      <nav className="page-container" style={{ padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
+      <nav
+        className="page-container"
+        style={{
+          padding: '0 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '60px',
+        }}
+      >
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.6rem', color: 'var(--neon)', letterSpacing: '0.1em', lineHeight: 1 }}>
@@ -27,8 +36,9 @@ export default function Navbar() {
           <span style={{ width: '6px', height: '6px', background: 'var(--accent)', borderRadius: '50%', marginLeft: '2px' }} />
         </Link>
 
-        {/* Desktop links */}
+        {/* Links de navegação */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }} className="nav-desktop">
+          
           <Link
             to="/"
             style={{
@@ -40,18 +50,40 @@ export default function Navbar() {
             Jogos
           </Link>
 
+          {/* Link exclusivo para admin */}
+          {isAdmin && (
+            <Link
+              to="/admin/importar"
+              style={{
+                textDecoration: 'none', fontSize: '0.85rem', fontWeight: 500,
+                color: isActive('/admin/importar') ? 'var(--neon)' : 'var(--text-muted)',
+                letterSpacing: '0.03em', transition: 'color 0.15s',
+              }}
+            >
+              Importar
+            </Link>
+          )}
+
           {isAuthenticated ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
-                  {user?.email?.split('@')[0]}
-                  {isAdmin && <span className="badge badge-accent" style={{ marginLeft: '6px' }}>ADMIN</span>}
-                </span>
-                <button onClick={handleSignOut} className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
-                  Sair
-                </button>
-              </div>
-            </>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-dim)',
+                fontFamily: 'JetBrains Mono, monospace',
+              }}>
+                {user?.email?.split('@')[0]}
+                {isAdmin && (
+                  <span className="badge badge-accent" style={{ marginLeft: '6px' }}>ADMIN</span>
+                )}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="btn btn-ghost"
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+              >
+                Sair
+              </button>
+            </div>
           ) : (
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <Link to="/login" className="btn btn-ghost" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
