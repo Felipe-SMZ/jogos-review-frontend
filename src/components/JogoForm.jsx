@@ -6,6 +6,16 @@ import { Spinner } from './Loading'
 import { criarJogo, editarJogo } from '../services/jogosService'
 import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
 
+const labelStyle = {
+  fontSize: '0.72rem',
+  color: 'var(--text-muted)',
+  fontFamily: 'JetBrains Mono, monospace',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  marginBottom: '0.375rem',
+  display: 'block',
+}
+
 export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
   const isEditing = !!jogo
 
@@ -15,7 +25,10 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
 
   useEffect(() => {
     if (isOpen) {
-      setForm(jogo ? { nome: jogo.nome, genero: jogo.genero, plataforma: jogo.plataforma } : { nome: '', genero: '', plataforma: '' })
+      setForm(jogo
+        ? { nome: jogo.nome, genero: jogo.genero, plataforma: jogo.plataforma }
+        : { nome: '', genero: '', plataforma: '' }
+      )
       setError('')
     }
   }, [isOpen, jogo])
@@ -47,13 +60,11 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Editar Jogo' : 'Novo Jogo'}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
         {error && <Alert type="error" message={error} onClose={() => setError('')} />}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.04em' }}>
-            NOME DO JOGO
-          </label>
+        <div>
+          <label style={labelStyle}>Nome do Jogo</label>
           <input
             className="input"
             name="nome"
@@ -61,34 +72,41 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
             onChange={handleChange}
             placeholder="Ex: The Last of Us Part II"
             maxLength={120}
+            autoFocus
           />
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.04em' }}>
-            GÊNERO
-          </label>
+        <div>
+          <label style={labelStyle}>Gênero</label>
           <select className="input" name="genero" value={form.genero} onChange={handleChange}>
             <option value="">Selecione o gênero...</option>
             {GENEROS.map(g => <option key={g} value={g}>{GENERO_LABEL[g]}</option>)}
           </select>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.04em' }}>
-            PLATAFORMA
-          </label>
+        <div>
+          <label style={labelStyle}>Plataforma</label>
           <select className="input" name="plataforma" value={form.plataforma} onChange={handleChange}>
             <option value="">Selecione a plataforma...</option>
             {PLATAFORMAS.map(p => <option key={p} value={p}>{PLATAFORMA_LABEL[p]}</option>)}
           </select>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-          <button type="button" onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost"
+            style={{ flex: 1 }}
+          >
             Cancelar
           </button>
-          <button type="submit" disabled={loading} className="btn btn-primary" style={{ flex: 1 }}>
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary"
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
             {loading ? <Spinner size={16} /> : (isEditing ? 'Salvar' : 'Criar Jogo')}
           </button>
         </div>
