@@ -1,149 +1,182 @@
-import { useState, useEffect } from 'react'
-import Modal from './Modal'
-import { Alert } from './Alert'
-import { Spinner } from './Loading'
+import { useEffect, useMemo, useState } from 'react'
 import { importarJogoIgdb } from '../services/igdbService'
-import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
+import { GENEROS, PLATAFORMAS } from '../constants/enums'
+import {
+  getGeneroLabel,
+  getPlataformaLabel,
+  getJogoImageUrl,
+  getJogoSummary,
+} from '../utils/jogoFormatters'
 import { extractErrorMsg } from '../utils/errorUtils'
-
-const ERROR_MSG = {
-  400: 'Campos inválidos. Verifique gênero e plataforma.',
-  404: 'Jogo não encontrado na IGDB.',
-  409: 'Este jogo já existe no sistema.',
-  502: 'Falha na comunicação com a IGDB. Tente novamente.',
-}
+import { Alert } from './Alert'
 
 export default function ImportarModal({ isOpen, onClose, game, onSuccess }) {
   const [genero, setGenero] = useState('')
   const [plataforma, setPlataforma] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       setGenero('')
       setPlataforma('')
+      setSubmitting(false)
       setError('')
     }
   }, [isOpen, game])
 
+  const coverUrl = useMemo(() => {
+    if (!game?.cover?.url) return null
+    return getJogoImageUrl(game.cover.url.replace('t_thumb', 't_cover_big'))
+  }, [game])
+
+  if (!isOpen || !game) return null
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (!genero || !plataforma) {
-      setError('Selecione o gênero e a plataforma.')
+      setError('Selecione gênero e plataforma para confirmar a importação.')
       return
     }
-    setLoading(true)
+
+    setSubmitting(true)
     setError('')
+
     try {
-      await importarJogoIgdb({ igdbId: game.id, genero, plataforma })
-      onSuccess?.(`"${game.name}" importado com sucesso!`)
-      onClose()
+      const res = await importarJogoIgdb({
+        igdbId: game.id,
+        genero,
+        plataforma,
+      })
+
+      onSuccess?.(`"${res?.data?.nome || game.name}" foi importado com sucesso.`)
+      onClose?.()
     } catch (err) {
-      const status = err.response?.status
-      setError(ERROR_MSG[status] ?? extractErrorMsg(err))
+      setError(extractErrorMsg(err))
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
-  if (!game) return null
-
-  const coverUrl = game.cover?.url
-    ? game.cover.url.replace('t_thumb', 't_cover_big')
-    : null
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Importar Jogo">
-      {/* Preview do jogo */}
-      <div style={{
-        display: 'flex', gap: '1rem', alignItems: 'flex-start',
-        padding: '0.75rem', background: 'var(--surface-2)',
-        borderRadius: '8px', marginBottom: '1.25rem',
-        border: '1px solid var(--border)',
-      }}>
-        {coverUrl && (
-          <img
-            src={coverUrl}
-            alt={game.name}
-            width={56}
-            height={80}
-            style={{ borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }}
-          />
-        )}
-        <div>
-          <p style={{
-            fontFamily: 'Bebas Neue, sans-serif',
-            fontSize: '1.1rem', letterSpacing: '0.04em', color: 'var(--text)',
-            lineHeight: 1.1, marginBottom: '0.3rem',
-          }}>
-            {game.name}
-          </p>
-          {game.rating && (
-            <span className="badge badge-neon" style={{ fontSize: '0.65rem' }}>
-              Score IGDB: {Math.round(game.rating)}
-            </span>
-          )}
-        </div>
-      </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/8 bg-[#0f1420] shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+        <div className="flex items-center justify-between border-b border-white/6 px-6 py-5">
+          <h2 className="font-['Bebas_Neue'] text-3xl tracking-[0.06em] text-white">
+            IMPORTAR JOGO
+          </h2>
 
-      {error && <Alert type="error" message={error} style={{ marginBottom: '1rem' }} />}
-
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem', letterSpacing: '0.03em' }}>
-            GÊNERO
-          </label>
-          <select
-            className="input"
-            value={genero}
-            onChange={e => setGenero(e.target.value)}
-            required
-          >
-            <option value="">Selecione o gênero</option>
-            {GENEROS.map(g => (
-              <option key={g} value={g}>{GENERO_LABEL[g]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.4rem', letterSpacing: '0.03em' }}>
-            PLATAFORMA
-          </label>
-          <select
-            className="input"
-            value={plataforma}
-            onChange={e => setPlataforma(e.target.value)}
-            required
-          >
-            <option value="">Selecione a plataforma</option>
-            {PLATAFORMAS.map(p => (
-              <option key={p} value={p}>{PLATAFORMA_LABEL[p]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             type="button"
-            className="btn btn-ghost"
             onClick={onClose}
-            disabled={loading}
-            style={{ flex: 1, justifyContent: 'center' }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-white/5 hover:text-white"
           >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading || !genero || !plataforma}
-            style={{ flex: 2, justifyContent: 'center' }}
-          >
-            {loading ? <Spinner /> : 'Confirmar Importação'}
+            ✕
           </button>
         </div>
-      </form>
-    </Modal>
+
+        <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          {error && <Alert type="error" message={error} />}
+
+          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+            <div className="flex gap-4">
+              <div className="h-24 w-16 shrink-0 overflow-hidden rounded-xl border border-white/8 bg-[#171b25]">
+                {coverUrl ? (
+                  <img
+                    src={coverUrl}
+                    alt={game.name}
+                    className="h-full w-full object-cover object-top"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-zinc-500">
+                    SEM CAPA
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="line-clamp-2 font-['Bebas_Neue'] text-[1.8rem] leading-[0.95] tracking-[0.04em] text-white">
+                  {game.name}
+                </h3>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-zinc-400">
+                  <span>
+                    Score IGDB:{' '}
+                    <strong className="text-zinc-200">
+                      {game.rating ? Number(game.rating).toFixed(0) : 'Sem nota'}
+                    </strong>
+                  </span>
+                </div>
+
+                <p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-400">
+                  {getJogoSummary(game.summary)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Gênero
+              </label>
+              <select
+                value={genero}
+                onChange={(e) => setGenero(e.target.value)}
+                className="h-12 w-full rounded-2xl border border-white/10 bg-[#171b25] px-4 text-sm text-white outline-none transition focus:border-emerald-400/70"
+              >
+                <option value="" disabled>
+                  Selecione o gênero
+                </option>
+                {GENEROS.map((item) => (
+                  <option key={item} value={item}>
+                    {getGeneroLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Plataforma
+              </label>
+              <select
+                value={plataforma}
+                onChange={(e) => setPlataforma(e.target.value)}
+                className="h-12 w-full rounded-2xl border border-white/10 bg-[#171b25] px-4 text-sm text-white outline-none transition focus:border-emerald-400/70"
+              >
+                <option value="" disabled>
+                  Selecione a plataforma
+                </option>
+                {PLATAFORMAS.map((item) => (
+                  <option key={item} value={item}>
+                    {getPlataformaLabel(item)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-5 text-sm text-zinc-300 transition hover:bg-white/[0.06]"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="h-12 rounded-2xl bg-emerald-400 px-5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+            >
+              {submitting ? 'Importando...' : 'Confirmar Importação'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }

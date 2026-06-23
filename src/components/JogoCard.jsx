@@ -1,199 +1,189 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
 import { useAuth } from '../context/AuthContext'
+import {
+  getGeneroLabel,
+  getPlataformaLabel,
+  getJogoImageUrl,
+  getJogoRatingNumber,
+  getMediaReviewsLabel,
+  getCommunityRatingColor,
+} from '../utils/jogoFormatters'
 
-function buildImage(url) {
-  if (!url) return null
-  return url.startsWith('http') ? url : `https:${url}`
+function CardImageFallback({ nome }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(180deg,#18202b,#0f141c)]">
+      <div className="px-4 text-center">
+        <p className="font-['Bebas_Neue'] text-2xl tracking-[0.06em] text-zinc-500">
+          SEM CAPA
+        </p>
+        <p className="mt-2 line-clamp-2 text-sm text-zinc-400">{nome}</p>
+      </div>
+    </div>
+  )
 }
 
-function ratingColor(m) {
-  if (m >= 7.5) return '#00ffaa'
-  if (m >= 5)   return '#ffc800'
-  return '#ff3b5c'
+function getNotaQualitativa(label, media, jogoRating) {
+  if (label === 'Comunidade' && media !== null && media !== undefined) {
+    const value = Number(media)
+    if (value >= 9) return 'Excelente'
+    if (value >= 7) return 'Muito bom'
+    if (value >= 5) return 'Bom'
+    if (value >= 3) return 'Regular'
+    return 'Fraco'
+  }
+
+  if (label === 'IGDB' && jogoRating !== null && jogoRating !== undefined) {
+    const value = Number(jogoRating) / 10
+    if (value >= 9) return 'Excelente'
+    if (value >= 7) return 'Muito bom'
+    if (value >= 5) return 'Bom'
+    if (value >= 3) return 'Regular'
+    return 'Fraco'
+  }
+
+  return 'Sem nota'
 }
 
 export default function JogoCard({ jogo, media, onEdit, onDelete }) {
   const { isAdmin } = useAuth()
-  const [hovered, setHovered] = useState(false)
 
-  const image    = buildImage(jogo.imageUrl)
-  const hasRating = media !== null && media !== undefined && Number(media) > 0
-  const cor       = hasRating ? ratingColor(Number(media)) : null
-  const inicial   = jogo.nome?.charAt(0).toUpperCase() ?? '?'
+  const image = getJogoImageUrl(jogo.imageUrl)
+  const jogoRating = getJogoRatingNumber(jogo.rating)
+  const mediaLabel = getMediaReviewsLabel(media)
+  const mediaColor = getCommunityRatingColor(media)
+
+  const notaPrincipal =
+    media !== null && media !== undefined
+      ? { label: 'Comunidade', value: mediaLabel, color: mediaColor }
+      : jogoRating !== null
+        ? { label: 'IGDB', value: jogoRating.toFixed(0), color: '#22c55e' }
+        : { label: 'Sem nota', value: '—', color: '#8b93a7' }
+
+  const origem = jogoRating !== null ? 'Importado da base' : 'Registro manual'
+  const notaQualitativa = getNotaQualitativa(notaPrincipal.label, media, jogoRating)
 
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: 'relative',
-        borderRadius: '12px',
-        overflow: 'hidden',
-        background: 'var(--surface)',
-        border: `1px solid ${hovered ? 'rgba(0,255,170,0.3)' : 'var(--border)'}`,
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'border-color 0.2s, box-shadow 0.2s, transform 0.2s',
-        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: hovered
-          ? '0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,255,170,0.08)'
-          : '0 2px 8px rgba(0,0,0,0.3)',
-        cursor: 'default',
-      }}
-    >
-      {/* Capa 2:3 */}
-      <div style={{ position: 'relative', aspectRatio: '2 / 3', overflow: 'hidden', flexShrink: 0 }}>
+    <article className="group flex h-full min-h-[455px] flex-col overflow-hidden rounded-[26px] border border-white/8 bg-[#111722] shadow-[0_12px_34px_rgba(0,0,0,0.24)] transition duration-300 hover:-translate-y-1 hover:border-emerald-400/20 hover:shadow-[0_18px_50px_rgba(0,0,0,0.34)]">
+      <div className="relative h-[310px] overflow-hidden bg-[#151b25]">
         {image ? (
           <img
             src={image}
             alt={jogo.nome}
             loading="lazy"
             decoding="async"
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%',
-              objectFit: 'cover', objectPosition: 'center top',
-              transition: 'transform 0.4s ease',
-              transform: hovered ? 'scale(1.05)' : 'scale(1)',
-              display: 'block',
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const fallback = e.currentTarget.nextElementSibling
+              if (fallback) fallback.style.display = 'flex'
             }}
+            className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-[1.03]"
           />
-        ) : (
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(135deg, var(--surface-2) 0%, #0a0f1a 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '5rem', lineHeight: 1,
-              color: 'rgba(255,255,255,0.05)',
-              userSelect: 'none',
-            }}>
-              {inicial}
-            </span>
-          </div>
-        )}
+        ) : null}
 
-        {/* Gradiente inferior */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(to top, rgba(7,11,20,0.9) 0%, transparent 50%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Badge de rating */}
-        <div style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 2,
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '0.72rem', fontWeight: 700, lineHeight: 1,
-          padding: '4px 7px', borderRadius: '6px',
-          background: 'rgba(0,0,0,0.72)',
-          backdropFilter: 'blur(8px)',
-          color: hasRating ? cor : 'rgba(255,255,255,0.2)',
-          border: `1px solid ${hasRating ? cor + '55' : 'rgba(255,255,255,0.07)'}`,
-        }}>
-          {hasRating ? Number(media).toFixed(1) : '—'}
+        <div style={{ display: image ? 'none' : 'flex' }}>
+          <CardImageFallback nome={jogo.nome} />
         </div>
 
-        {/* Ações admin no hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f16] via-[#0b0f16]/18 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0b0f16] via-[#0b0f16]/82 to-transparent" />
+
+        <div className="absolute right-4 top-4 z-20">
+          <span
+            className="inline-flex rounded-full border bg-[#18241d]/92 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] shadow-[0_8px_20px_rgba(0,0,0,0.22)] backdrop-blur-md"
+            style={{
+              color: notaPrincipal.color,
+              borderColor:
+                notaPrincipal.label === 'Sem nota'
+                  ? 'rgba(255,255,255,0.08)'
+                  : `${notaPrincipal.color}55`,
+            }}
+          >
+            {notaPrincipal.label === 'IGDB' ? `IGDB ${notaPrincipal.value}` : notaPrincipal.value}
+          </span>
+        </div>
+
         {isAdmin && (
-          <div style={{
-            position: 'absolute', top: 8, left: 8, zIndex: 2,
-            display: 'flex', gap: '5px',
-            opacity: hovered ? 1 : 0,
-            transition: 'opacity 0.18s',
-            pointerEvents: hovered ? 'auto' : 'none',
-          }}>
+          <div className="absolute left-4 top-4 z-20 flex gap-2 opacity-0 transition duration-200 group-hover:opacity-100">
             <button
-              onClick={(e) => { e.preventDefault(); onEdit?.(jogo) }}
-              title="Editar"
-              style={{
-                width: 30, height: 30, borderRadius: '7px',
-                border: 'none',
-                background: 'rgba(0,0,0,0.78)',
-                backdropFilter: 'blur(8px)',
-                color: 'rgba(255,255,255,0.55)',
-                cursor: 'pointer', fontSize: '0.85rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'color 0.15s, background 0.15s',
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                onEdit?.(jogo)
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; e.currentTarget.style.background = 'rgba(0,0,0,0.78)' }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/60 text-zinc-300 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+              title="Editar"
             >
               ✎
             </button>
+
             <button
-              onClick={(e) => { e.preventDefault(); onDelete?.(jogo) }}
-              title="Deletar"
-              style={{
-                width: 30, height: 30, borderRadius: '7px',
-                border: 'none',
-                background: 'rgba(0,0,0,0.78)',
-                backdropFilter: 'blur(8px)',
-                color: '#ff3b5c',
-                cursor: 'pointer', fontSize: '0.8rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background 0.15s',
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                onDelete?.(jogo)
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,59,92,0.18)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.78)'}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/20 bg-black/60 text-rose-400 backdrop-blur-md transition hover:bg-rose-500/10"
+              title="Deletar"
             >
               ✕
             </button>
           </div>
         )}
+
+        <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="rounded-md border border-white/10 bg-black/28 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-200 backdrop-blur-sm">
+              {getPlataformaLabel(jogo.plataforma)}
+            </span>
+
+            <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-300 backdrop-blur-sm">
+              {getGeneroLabel(jogo.genero)}
+            </span>
+          </div>
+
+          <h3 className="line-clamp-2 max-w-[85%] font-['Bebas_Neue'] text-[1.75rem] leading-[0.92] tracking-[0.03em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
+            {jogo.nome}
+          </h3>
+        </div>
       </div>
 
-      {/* Info */}
-      <div style={{
-        padding: '0.75rem 0.875rem 0.875rem',
-        display: 'flex', flexDirection: 'column', gap: '0.5rem',
-        flex: 1,
-      }}>
-        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-          <span className="badge badge-muted">
-            {PLATAFORMA_LABEL[jogo.plataforma] || jogo.plataforma}
-          </span>
-          <span className="badge badge-neon">
-            {GENERO_LABEL[jogo.genero] || jogo.genero}
-          </span>
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
+        <div className="grid grid-cols-2 gap-4 border-t border-white/6 pt-3">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+              {notaPrincipal.label === 'Comunidade' ? 'Comunidade' : 'IGDB'}
+            </p>
+
+            <p
+              className="mt-1 text-[2rem] font-black leading-none tracking-[-0.03em]"
+              style={{ color: notaPrincipal.color }}
+            >
+              {notaPrincipal.value}
+            </p>
+
+            <p className="mt-1 text-sm text-zinc-400">
+              {notaQualitativa}
+            </p>
+          </div>
+
+          <div className="text-right">
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+              Origem
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              {origem}
+            </p>
+          </div>
         </div>
-
-        <h3 style={{
-          fontFamily: 'Bebas Neue, sans-serif',
-          fontSize: '1.25rem',
-          letterSpacing: '0.04em', lineHeight: 1.15,
-          color: '#fff', margin: 0,
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          minHeight: '2.3em',
-        }}>
-          {jogo.nome}
-        </h3>
-
-        <div style={{ flex: 1 }} />
 
         <Link
           to={`/jogos/${jogo.id}`}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '0.55rem', borderRadius: '7px',
-            textDecoration: 'none',
-            fontWeight: 600, fontSize: '0.8rem', letterSpacing: '0.03em',
-            background: hovered ? 'rgba(0,255,170,0.12)' : 'transparent',
-            color: 'var(--neon)',
-            border: '1px solid rgba(0,255,170,0.18)',
-            transition: 'background 0.2s',
-          }}
+          className="mt-4 inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-emerald-400/18 bg-emerald-400/10 px-4 text-sm font-bold text-zinc-100 transition hover:border-emerald-400/30 hover:bg-emerald-400/14 hover:text-white"
         >
           Ver Reviews
         </Link>
       </div>
-    </div>
+    </article>
   )
 }

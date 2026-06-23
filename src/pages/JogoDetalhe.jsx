@@ -1,540 +1,440 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
-import { buscarJogo, deletarJogo, mediaNotas } from '../services/jogosService'
-import { listarReviews, criarReview } from '../services/reviewsService'
-import { GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { StarPicker } from '../components/StarRating'
+import { buscarJogoPorId, mediaNotas } from '../services/jogosService'
+import { buscarReviewsPorJogo, criarReview } from '../services/reviewsService'
 import { Alert } from '../components/Alert'
-import { extractErrorMsg } from '../utils/errorUtils'
-import { PageLoader, Spinner } from '../components/Loading'
-import JogoForm from '../components/JogoForm'
-import ConfirmDialog from '../components/ConfirmDialog'
 import ReviewCard from '../components/ReviewCard'
-import Pagination from '../components/Pagination'
+import ReviewFormCard from '../components/ReviewFormCard'
+import { extractErrorMsg } from '../utils/errorUtils'
+import {
+  getGeneroLabel,
+  getPlataformaLabel,
+  getJogoImageUrl,
+  getJogoSummary,
+  getJogoRatingNumber,
+  getCommunityRatingColor,
+} from '../utils/jogoFormatters'
 
-function buildImage(url) {
-  if (!url) return null
-  return url.startsWith('http') ? url : `https:${url}`
+function getScoreLabel(value, scale = 10) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+    return 'Sem nota'
+  }
+
+  const normalized = scale === 100 ? Number(value) / 10 : Number(value)
+
+  if (normalized >= 9) return 'Excelente'
+  if (normalized >= 7) return 'Muito bom'
+  if (normalized >= 5) return 'Bom'
+  if (normalized >= 3) return 'Regular'
+  return 'Fraco'
 }
 
-function ratingColor(m) {
-  if (m >= 7.5) return '#00ffaa'
-  if (m >= 5)   return '#ffc800'
-  return '#ff3b5c'
+function formatMainScore(value, scale = 10) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+    return 'Sem nota'
+  }
+
+  const num = Number(value)
+
+  if (scale === 100) {
+    return `${Math.round(num)}`
+  }
+
+  const rounded = Math.round(num * 10) / 10
+  return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1)
+}
+
+function StatCard({ label, value, hint, color = '#e5e7eb' }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-400">
+        {label}
+      </p>
+
+      <p
+        className="mt-3 text-[1.9rem] font-black leading-none tracking-[-0.03em]"
+        style={{ color }}
+      >
+        {value}
+      </p>
+
+      {hint && (
+        <p className="mt-3 text-sm leading-6 text-zinc-400">
+          {hint}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function extrairNotaReview(review) {
+  const valor = Number(
+    review?.nota ??
+    review?.rating ??
+    review?.score ??
+    review?.notaReview ??
+    null
+  )
+
+  return Number.isFinite(valor) ? valor : null
+}
+
+function calcularMediaLocal(reviews) {
+  const notas = reviews
+    .map(extrairNotaReview)
+    .filter((nota) => Number.isFinite(nota) && nota >= 1 && nota <= 10)
+
+  if (!notas.length) return null
+
+  const soma = notas.reduce((acc, nota) => acc + nota, 0)
+  return soma / notas.length
+}
+
+function extrairMediaDaResposta(raw) {
+  const candidatos = [
+    raw?.mediaNotas,
+    raw?.media,
+    raw?.average,
+    raw?.mediaNota,
+    raw?.notaMedia,
+    raw?.avg,
+    raw?.value,
+    typeof raw === 'number' ? raw : null,
+  ]
+
+  const encontrada = candidatos.find((item) => Number.isFinite(Number(item)))
+  if (encontrada === undefined || encontrada === null) return null
+
+  const numero = Number(encontrada)
+  return Number.isFinite(numero) ? numero : null
 }
 
 export default function JogoDetalhe() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const { isAuthenticated, isAdmin, user } = useAuth()
+  const { isAuthenticated } = useAuth()
 
-  const [jogo, setJogo]               = useState(null)
-  const [media, setMedia]             = useState(null)
+  const [jogo, setJogo] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [mediaApi, setMediaApi] = useState(null)
+
   const [loadingJogo, setLoadingJogo] = useState(true)
-  const [error, setError]             = useState('')
+  const [loadingReviews, setLoadingReviews] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  const [reviews, setReviews]                   = useState([])
-  const [reviewPage, setReviewPage]             = useState(0)
-  const [reviewTotalPages, setReviewTotalPages] = useState(0)
-  const [loadingReviews, setLoadingReviews]     = useState(false)
+  const [nota, setNota] = useState(0)
+  const [comentario, setComentario] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
-  const [formOpen, setFormOpen]     = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-
-  const [nota, setNota]                   = useState(0)
-  const [comentario, setComentario]       = useState('')
-  const [submitting, setSubmitting]       = useState(false)
-  const [reviewError, setReviewError]     = useState('')
-  const [reviewSuccess, setReviewSuccess] = useState('')
-
-  const fetchJogo = useCallback(async () => {
-    setLoadingJogo(true)
+  const carregarTudo = useCallback(async () => {
     setError('')
+    setLoadingJogo(true)
+    setLoadingReviews(true)
+
     try {
-      const [jogoRes, mediaRes] = await Promise.all([
-        buscarJogo(id),
+      const [jogoRes, reviewsRes, mediaRes] = await Promise.allSettled([
+        buscarJogoPorId(id),
+        buscarReviewsPorJogo(id),
         mediaNotas(id),
       ])
-      setJogo(jogoRes.data)
-      const raw = mediaRes.data
-      const valor = raw?.mediaNotas ?? raw?.notas ?? raw?.media ?? null
-      const num = valor !== null && valor !== undefined ? Number(valor) : null
-      setMedia(num && num > 0 ? num : null)
+
+      if (jogoRes.status === 'fulfilled') {
+        setJogo(jogoRes.value.data)
+      } else {
+        throw jogoRes.reason
+      }
+
+      let reviewsCarregadas = []
+
+      if (reviewsRes.status === 'fulfilled') {
+        const data = reviewsRes.value.data
+        reviewsCarregadas = Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data)
+            ? data
+            : []
+
+        setReviews(reviewsCarregadas)
+      } else {
+        setReviews([])
+      }
+
+      if (mediaRes.status === 'fulfilled') {
+        const mediaExtraida = extrairMediaDaResposta(mediaRes.value.data)
+        setMediaApi(mediaExtraida)
+      } else {
+        setMediaApi(null)
+      }
+
+      if (mediaRes.status !== 'fulfilled') {
+        setMediaApi(calcularMediaLocal(reviewsCarregadas))
+      }
     } catch (err) {
-      console.error(err)
-      setError('Jogo não encontrado.')
+      setError(extractErrorMsg(err))
     } finally {
       setLoadingJogo(false)
+      setLoadingReviews(false)
     }
   }, [id])
 
-  const fetchReviews = useCallback(async () => {
-    setLoadingReviews(true)
-    try {
-      const res = await listarReviews(id, { page: reviewPage, size: 5 })
-      const data = res.data
-      setReviews(data.content || [])
-      setReviewTotalPages(data.totalPages || 1)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoadingReviews(false)
+  useEffect(() => {
+    carregarTudo()
+  }, [carregarTudo])
+
+  const handleSubmitReview = async () => {
+    const notaInt = Number(nota)
+    const comentarioLimpo = comentario.trim()
+
+    if (!isAuthenticated) {
+      setError('Você precisa estar logado para publicar uma review.')
+      return
     }
-  }, [id, reviewPage])
 
-  useEffect(() => { fetchJogo() },    [fetchJogo])
-  useEffect(() => { fetchReviews() }, [fetchReviews])
+    if (!Number.isInteger(notaInt) || notaInt < 1 || notaInt > 10) {
+      setError('A nota deve estar entre 1 e 10.')
+      return
+    }
 
-  const handleDeleteJogo = async () => {
-    await deletarJogo(id)
-    navigate('/')
-  }
+    if (!comentarioLimpo) {
+      setError('O comentário é obrigatório.')
+      return
+    }
 
-  const handleSubmitReview = async (e) => {
-    e.preventDefault()
-    if (!nota)              { setReviewError('Selecione uma nota.');    return }
-    if (!comentario.trim()) { setReviewError('Escreva um comentário.'); return }
-    setSubmitting(true); setReviewError(''); setReviewSuccess('')
+    if (comentarioLimpo.length > 500) {
+      setError('O comentário deve ter no máximo 500 caracteres.')
+      return
+    }
+
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+
     try {
-      await criarReview(id, { nota, comentario })
-      setNota(0); setComentario('')
-      setReviewSuccess('Review publicada com sucesso!')
-      await fetchReviews()
-      await fetchJogo()
+      await criarReview(id, {
+        nota: notaInt,
+        comentario: comentarioLimpo,
+      })
+
+      setNota(0)
+      setComentario('')
+      setSuccess('Review publicada com sucesso.')
+      await carregarTudo()
     } catch (err) {
-      setReviewError(extractErrorMsg(err))
+      setError(extractErrorMsg(err))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const userHasReview = Boolean(
-    user?.email &&
-    reviews.some(r => {
-      const re = r.emailUsuario || r.email || r.usuario?.email || null
-      return re && re === user.email
-    })
-  )
+  const imageUrl = useMemo(() => getJogoImageUrl(jogo?.imageUrl), [jogo])
+  const resumo = useMemo(() => getJogoSummary(jogo?.summary), [jogo])
 
-  if (loadingJogo) return <PageLoader />
+  const ratingIgdb = getJogoRatingNumber(jogo?.rating)
 
-  if (!jogo) return (
-    <div className="page-container">
-      <Alert type="error" message={error || 'Jogo não encontrado.'} />
-      <Link to="/" className="btn btn-ghost" style={{ marginTop: '1rem' }}>← Voltar</Link>
-    </div>
-  )
+  const mediaCalculada = useMemo(() => {
+    if (mediaApi !== null && Number.isFinite(mediaApi)) return mediaApi
+    return calcularMediaLocal(reviews)
+  }, [mediaApi, reviews])
 
-  const coverUrl = buildImage(jogo.imageUrl)
-  const cor      = media ? ratingColor(media) : null
+  const mediaColor = mediaCalculada !== null
+    ? getCommunityRatingColor(mediaCalculada)
+    : '#e5e7eb'
 
-  return (
-    <div className="page-container">
+  const igdbColor = ratingIgdb !== null ? '#7dd3fc' : '#e5e7eb'
 
-      {/* Breadcrumb */}
-      <Link
-        to="/"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-          color: 'var(--text-muted)', textDecoration: 'none',
-          fontSize: '0.82rem', marginBottom: '1.5rem', transition: 'color 0.15s',
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-      >
-        ← Todos os jogos
-      </Link>
-
-      {/* ── HERO ── */}
-      <div
-        className="animate-fade-up"
-        style={{
-          position: 'relative',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          marginBottom: '2rem',
-          minHeight: '260px',
-          isolation: 'isolate',
-          boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
-        }}
-      >
-        {/* Camada 1 — background blur */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute', inset: '-20px',   // expande além das bordas para o blur não cortar
-            backgroundImage: coverUrl ? `url(${coverUrl})` : 'none',
-            backgroundColor: '#0c1220',
-            backgroundSize: '300%',
-            backgroundPosition: 'center top',
-            filter: coverUrl ? 'blur(28px) brightness(0.22) saturate(1.6)' : 'none',
-            zIndex: 0,
-          }}
-        />
-
-        {/* Camada 2 — gradientes */}
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute', inset: 0, zIndex: 1,
-            background: coverUrl
-              ? `linear-gradient(to right, rgba(7,11,20,0.96) 0%, rgba(7,11,20,0.7) 50%, rgba(7,11,20,0.15) 100%),
-                 linear-gradient(to top,   rgba(7,11,20,0.85) 0%, transparent 55%)`
-              : 'linear-gradient(145deg, rgba(14,20,36,0.98), rgba(7,11,20,1))',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Camada 3 — conteúdo */}
-        <div style={{
-          position: 'relative', zIndex: 2,
-          display: 'flex', alignItems: 'stretch',
-          minHeight: '260px',
-        }}>
-
-          {/* Capa — altura total, bordas contidas pelo overflow:hidden do pai */}
-          {coverUrl && (
-            <div style={{
-              flexShrink: 0,
-              width: 185,
-              position: 'relative',
-              overflow: 'hidden',
-            }}>
-              <img
-                src={coverUrl}
-                alt={jogo.nome}
-                loading="eager"
-                decoding="async"
-                style={{
-                  position: 'absolute', inset: 0,
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center top',
-                  display: 'block',
-                }}
-              />
-              {/* Fade lateral → conteúdo */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(to right, transparent 50%, rgba(7,11,20,0.96) 100%)',
-                pointerEvents: 'none',
-              }} />
-            </div>
-          )}
-
-          {/* Info */}
-          <div style={{
-            padding: '1.75rem 2rem',
-            display: 'flex', flexDirection: 'column',
-            justifyContent: 'space-between',
-            flex: 1, minWidth: 0, gap: '1rem',
-          }}>
-
-            {/* Linha superior: badges + ações admin */}
-            <div style={{
-              display: 'flex', alignItems: 'flex-start',
-              justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem',
-            }}>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                <span className="badge badge-muted">
-                  {PLATAFORMA_LABEL[jogo.plataforma] || jogo.plataforma}
-                </span>
-                <span className="badge badge-neon">
-                  {GENERO_LABEL[jogo.genero] || jogo.genero}
-                </span>
-              </div>
-
-              {isAdmin && (
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button
-                    onClick={() => setFormOpen(true)}
-                    className="btn btn-ghost"
-                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => setDeleteOpen(true)}
-                    className="btn btn-danger"
-                    style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}
-                  >
-                    Deletar
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Título */}
-            <h1 style={{
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: 'clamp(2rem, 4.5vw, 3.6rem)',
-              letterSpacing: '0.04em', lineHeight: 1,
-              color: '#fff', margin: 0,
-              textShadow: '0 2px 20px rgba(0,0,0,0.8)',
-            }}>
-              {jogo.nome}
-            </h1>
-
-            {/* Rating */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              {media !== null ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
-                    <span style={{
-                      fontFamily: 'JetBrains Mono, monospace',
-                      fontSize: '2.8rem', fontWeight: 800, lineHeight: 1,
-                      color: cor,
-                      textShadow: `0 0 32px ${cor}44`,
-                    }}>
-                      {Number(media).toFixed(1)}
-                    </span>
-                    <span style={{
-                      fontFamily: 'JetBrains Mono, monospace',
-                      fontSize: '0.95rem', color: 'rgba(255,255,255,0.28)', fontWeight: 400,
-                    }}>
-                      /10
-                    </span>
-                  </div>
-
-                  <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.1)' }} />
-
-                  <span style={{
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '0.62rem', color: 'rgba(255,255,255,0.32)',
-                    letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.7,
-                  }}>
-                    Média das<br />avaliações
-                  </span>
-                </>
-              ) : (
-                <span style={{
-                  fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)',
-                  letterSpacing: '0.1em', textTransform: 'uppercase',
-                }}>
-                  Sem avaliações ainda
-                </span>
-              )}
-            </div>
-
+  if (loadingJogo) {
+    return (
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-8 sm:px-6 lg:px-8 xl:px-10">
+        <div className="space-y-6">
+          <div className="h-6 w-40 animate-pulse rounded-lg bg-white/8" />
+          <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="aspect-[3/4] animate-pulse rounded-[28px] bg-white/8" />
+            <div className="min-h-[420px] animate-pulse rounded-[28px] bg-white/8" />
           </div>
         </div>
       </div>
+    )
+  }
 
-      {/* ── GRID REVIEWS + SIDEBAR ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0,1fr) 340px',
-        gap: '1.5rem',
-        alignItems: 'start',
-      }}>
+  if (!jogo) {
+    return (
+      <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-8 text-center sm:px-6 lg:px-8 xl:px-10">
+        <Alert type="error" message={error || 'Jogo não encontrado.'} />
+      </div>
+    )
+  }
 
-        {/* Lista de reviews */}
-        <div>
-          <h2 style={{
-            fontFamily: 'Bebas Neue, sans-serif',
-            fontSize: '1.75rem', marginBottom: '1rem', color: 'var(--text)',
-          }}>
-            REVIEWS{' '}
-            <span style={{
-              color: 'var(--text-dim)', fontSize: '0.95rem',
-              fontFamily: 'DM Sans, sans-serif', fontWeight: 400,
-            }}>
-              ({reviews.length})
-            </span>
-          </h2>
+  return (
+    <div className="mx-auto w-full max-w-[1440px] px-4 pb-16 pt-8 sm:px-6 lg:px-8 xl:px-10">
+      <div className="mb-6">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white"
+        >
+          ← Todos os jogos
+        </Link>
+      </div>
+
+      {error && (
+        <div className="mb-5">
+          <Alert type="error" message={error} onClose={() => setError('')} />
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-5">
+          <Alert type="success" message={success} onClose={() => setSuccess('')} />
+        </div>
+      )}
+
+      <section className="overflow-hidden rounded-[30px] border border-white/8 bg-[linear-gradient(145deg,rgba(20,25,40,0.98),rgba(13,17,28,1))] shadow-[0_18px_50px_rgba(0,0,0,0.22)]">
+        <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="relative min-h-[340px] overflow-hidden bg-[#151b25]">
+            <img
+              src={imageUrl}
+              alt={jogo.nome}
+              className="absolute inset-0 h-full w-full object-cover object-top"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0f1420]/70 lg:hidden" />
+            <div className="absolute inset-0 hidden bg-gradient-to-r from-transparent via-transparent to-[#0f1420] lg:block" />
+          </div>
+
+          <div className="p-5 sm:p-7 lg:p-8 xl:p-10">
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-300">
+                  {getPlataformaLabel(jogo.plataforma)}
+                </span>
+
+                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">
+                  {getGeneroLabel(jogo.genero)}
+                </span>
+              </div>
+
+              <div>
+                <h1 className="font-['Bebas_Neue'] text-[clamp(2.5rem,6vw,5rem)] leading-[0.92] tracking-[0.05em] text-white">
+                  {jogo.nome}
+                </h1>
+
+                <p className="mt-4 max-w-4xl text-sm leading-7 text-zinc-300 sm:text-[0.98rem]">
+                  {resumo}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  label="Nota da comunidade"
+                  value={mediaCalculada !== null ? formatMainScore(mediaCalculada, 10) : 'Sem nota'}
+                  hint={
+                    mediaCalculada !== null
+                      ? `${getScoreLabel(mediaCalculada, 10)} · baseada em ${reviews.length} review(s).`
+                      : 'Ainda não há avaliações da comunidade.'
+                  }
+                  color={mediaColor}
+                />
+
+                <StatCard
+                  label="Nota do IGDB"
+                  value={ratingIgdb !== null ? formatMainScore(ratingIgdb, 100) : 'Sem nota'}
+                  hint={
+                    ratingIgdb !== null
+                      ? `${getScoreLabel(ratingIgdb, 100)} · score importado da base externa.`
+                      : 'Este jogo ainda não possui score externo.'
+                  }
+                  color={igdbColor}
+                />
+
+                <StatCard
+                  label="Status das reviews"
+                  value={reviews.length > 0 ? `${reviews.length}` : '0'}
+                  hint={
+                    reviews.length > 0
+                      ? 'Quantidade de avaliações publicadas neste jogo.'
+                      : 'Nenhuma review publicada até o momento.'
+                  }
+                />
+
+                <StatCard
+                  label="Origem dos dados"
+                  value={ratingIgdb !== null ? 'IGDB' : 'Manual'}
+                  hint={
+                    ratingIgdb !== null
+                      ? 'Dados enriquecidos com base externa.'
+                      : 'Jogo cadastrado sem nota externa.'
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-400">
+                Reviews
+              </p>
+
+              <h2 className="font-['Bebas_Neue'] text-[2.4rem] leading-none tracking-[0.04em] text-white">
+                OPINIÕES DA COMUNIDADE
+              </h2>
+            </div>
+
+            <p className="text-sm text-zinc-500">
+              {reviews.length} item(ns) nesta página
+            </p>
+          </div>
 
           {loadingReviews ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-              <Spinner size={24} label="Carregando reviews..." />
+            <div className="space-y-4">
+              <div className="h-44 animate-pulse rounded-[20px] bg-white/8" />
+              <div className="h-44 animate-pulse rounded-[20px] bg-white/8" />
             </div>
           ) : reviews.length === 0 ? (
-            <div style={{
-              padding: '2.5rem', textAlign: 'center',
-              border: '1px dashed rgba(255,255,255,0.07)',
-              borderRadius: '12px',
-              color: 'var(--text-dim)', fontSize: '0.875rem',
-              fontFamily: 'JetBrains Mono, monospace',
-            }}>
-              Nenhuma review ainda. Seja o primeiro!
+            <div className="rounded-[24px] border border-dashed border-white/8 bg-white/[0.02] px-6 py-16 text-center">
+              <p className="font-['Bebas_Neue'] text-4xl tracking-[0.05em] text-zinc-200">
+                AINDA NÃO HÁ REVIEWS
+              </p>
+
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-zinc-400">
+                Seja o primeiro a registrar uma opinião e abrir a discussão sobre este jogo.
+              </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {reviews.map(r => (
+            <div className="space-y-4">
+              {reviews.map((review) => (
                 <ReviewCard
-                  key={r.id}
-                  review={r}
-                  onUpdate={fetchReviews}
-                  onDelete={() => { fetchReviews(); fetchJogo() }}
+                  key={review.id}
+                  review={review}
+                  onUpdate={carregarTudo}
+                  onDelete={carregarTudo}
                 />
               ))}
             </div>
           )}
-
-          <Pagination
-            page={reviewPage}
-            totalPages={reviewTotalPages}
-            onPageChange={setReviewPage}
-          />
         </div>
 
-        {/* Sidebar */}
-        <div style={{ position: 'sticky', top: '80px' }}>
-          {isAuthenticated ? (
-            userHasReview ? (
-              <div style={{
-                padding: '1.5rem',
-                background: 'linear-gradient(145deg, rgba(14,20,36,0.98), rgba(7,11,20,1))',
-                border: '1px solid rgba(0,255,136,0.12)',
-                borderRadius: '14px', textAlign: 'center',
-              }}>
-                <div style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>✓</div>
-                <p style={{ color: 'var(--neon)', fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>
-                  Você já avaliou este jogo
-                </p>
-                <p style={{
-                  color: 'var(--text-dim)', fontSize: '0.76rem',
-                  marginTop: '0.375rem', margin: '0.375rem 0 0',
-                }}>
-                  Para alterar, edite sua review na lista.
-                </p>
-              </div>
-            ) : (
-              <div style={{
-                background: 'linear-gradient(145deg, rgba(14,20,36,0.98), rgba(7,11,20,1))',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '14px', overflow: 'hidden',
-              }}>
-                <div style={{
-                  padding: '0.875rem 1.25rem',
-                  borderBottom: '1px solid rgba(255,255,255,0.07)',
-                  background: 'rgba(0,255,136,0.03)',
-                }}>
-                  <h3 style={{
-                    fontFamily: 'Bebas Neue, sans-serif',
-                    fontSize: '1.05rem', letterSpacing: '0.06em',
-                    color: 'var(--text)', margin: 0,
-                  }}>
-                    ESCREVER REVIEW
-                  </h3>
-                </div>
+        <div>
+          <ReviewFormCard
+            disabled={!isAuthenticated}
+            nota={nota}
+            setNota={setNota}
+            comentario={comentario}
+            setComentario={setComentario}
+            loading={submitting}
+            onSubmit={handleSubmitReview}
+          />
 
-                <form onSubmit={handleSubmitReview} style={{
-                  padding: '1.25rem',
-                  display: 'flex', flexDirection: 'column', gap: '1rem',
-                }}>
-                  {reviewError   && <Alert type="error"   message={reviewError}   onClose={() => setReviewError('')} />}
-                  {reviewSuccess && <Alert type="success" message={reviewSuccess} onClose={() => setReviewSuccess('')} />}
-
-                  <div>
-                    <div style={{
-                      fontSize: '0.68rem', color: 'var(--text-muted)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                      letterSpacing: '0.1em', textTransform: 'uppercase',
-                      marginBottom: '0.5rem',
-                    }}>
-                      Sua Nota
-                    </div>
-                    <StarPicker value={nota} onChange={setNota} />
-                  </div>
-
-                  <div>
-                    <div style={{
-                      fontSize: '0.68rem', color: 'var(--text-muted)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                      letterSpacing: '0.1em', textTransform: 'uppercase',
-                      marginBottom: '0.375rem',
-                    }}>
-                      Comentário
-                    </div>
-                    <textarea
-                      className="input"
-                      value={comentario}
-                      onChange={e => setComentario(e.target.value)}
-                      rows={4}
-                      maxLength={500}
-                      placeholder="Escreva sua opinião sobre o jogo..."
-                      style={{ resize: 'vertical', fontFamily: 'DM Sans, sans-serif' }}
-                    />
-                    <div style={{
-                      textAlign: 'right', fontSize: '0.66rem',
-                      color: 'var(--text-dim)', marginTop: '3px',
-                      fontFamily: 'JetBrains Mono, monospace',
-                    }}>
-                      {comentario.length}/500
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="btn btn-primary"
-                    style={{ width: '100%', justifyContent: 'center', padding: '0.8rem' }}
-                  >
-                    {submitting ? <Spinner size={16} /> : 'Publicar Review'}
-                  </button>
-                </form>
-              </div>
-            )
-          ) : (
-            <div style={{
-              padding: '1.5rem',
-              background: 'linear-gradient(145deg, rgba(14,20,36,0.98), rgba(7,11,20,1))',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '14px', textAlign: 'center',
-              display: 'flex', flexDirection: 'column', gap: '0.875rem',
-            }}>
-              <div style={{ fontSize: '2rem' }}>🎮</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
-                Faça login para escrever uma review
-              </p>
-              <Link to="/login" className="btn btn-outline" style={{ justifyContent: 'center' }}>
-                Entrar
-              </Link>
-              <Link
-                to="/registro"
-                style={{
-                  fontSize: '0.78rem', color: 'var(--text-dim)',
-                  textDecoration: 'none', transition: 'color 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-dim)'}
-              >
-                Não tem conta? Registre-se
-              </Link>
+          {!isAuthenticated && (
+            <div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.02] p-4 text-sm leading-6 text-zinc-400">
+              Você precisa estar logado para publicar uma review.
             </div>
           )}
         </div>
-      </div>
-
-      <JogoForm
-        isOpen={formOpen}
-        onClose={() => setFormOpen(false)}
-        jogo={jogo}
-        onSuccess={fetchJogo}
-      />
-      <ConfirmDialog
-        isOpen={deleteOpen}
-        onClose={() => setDeleteOpen(false)}
-        onConfirm={handleDeleteJogo}
-        title="Deletar Jogo"
-        message={`Deletar "${jogo.nome}"? Todas as reviews também serão removidas.`}
-      />
-
-      <style>{`
-        @media (max-width: 768px) {
-          .jogo-detalhe-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .jogo-detalhe-sidebar {
-            position: static !important;
-          }
-          .jogo-hero-capa {
-            width: 130px !important;
-          }
-        }
-      `}</style>
+      </section>
     </div>
   )
 }

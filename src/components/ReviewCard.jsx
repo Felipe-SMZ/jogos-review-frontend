@@ -21,11 +21,11 @@ function getNomeDaReview(review) {
 
 function getIniciais(identificador) {
   if (!identificador) return '?'
-  if (identificador.includes('@')) {
-    return identificador.substring(0, 2).toUpperCase()
-  }
+  if (identificador.includes('@')) return identificador.substring(0, 2).toUpperCase()
+
   const partes = identificador.trim().split(' ')
   if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase()
+
   return identificador.substring(0, 2).toUpperCase()
 }
 
@@ -37,41 +37,39 @@ function getAvatarColor(str) {
     { bg: 'rgba(255,200,0,0.12)', border: 'rgba(255,200,0,0.35)', text: '#ffc800' },
     { bg: 'rgba(180,100,255,0.12)', border: 'rgba(180,100,255,0.35)', text: '#b464ff' },
   ]
+
   let hash = 0
   for (let i = 0; i < (str || '').length; i++) hash += str.charCodeAt(i)
   return colors[hash % colors.length]
 }
 
-function NotaCirculo({ nota, size = 48 }) {
+function NotaBadge({ nota }) {
   const cor =
-    nota >= 7.5 ? '#00ff88' :
-      nota >= 5 ? '#ffc800' :
-        '#ff3b5c'
+    nota >= 7.5 ? '#00ff88'
+      : nota >= 5 ? '#ffc800'
+        : '#ff3b5c'
 
   const corBg =
-    nota >= 7.5 ? 'rgba(0,255,136,0.08)' :
-      nota >= 5 ? 'rgba(255,200,0,0.08)' :
-        'rgba(255,59,92,0.08)'
+    nota >= 7.5 ? 'rgba(0,255,136,0.08)'
+      : nota >= 5 ? 'rgba(255,200,0,0.08)'
+        : 'rgba(255,59,92,0.08)'
 
   return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      border: `1.5px solid ${cor}`,
-      background: corBg,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <span style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: size * 0.33 + 'px',
-        fontWeight: 700, lineHeight: 1, color: cor,
-      }}>
+    <div
+      className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full border"
+      style={{
+        borderColor: cor,
+        background: corBg,
+        boxShadow: `0 0 0 1px ${cor}20 inset`,
+      }}
+    >
+      <span
+        className="font-mono text-[1rem] font-bold leading-none"
+        style={{ color: cor }}
+      >
         {Number(nota).toFixed(1)}
       </span>
-      <span style={{ fontSize: size * 0.18 + 'px', color: 'rgba(255,255,255,0.3)', lineHeight: 1 }}>
-        /10
-      </span>
+      <span className="mt-0.5 text-[10px] leading-none text-zinc-500">/10</span>
     </div>
   )
 }
@@ -86,18 +84,25 @@ export default function ReviewCard({ review, onUpdate, onDelete }) {
 
   const isOwner = Boolean(
     isAuthenticated && (
-      // comparar por id (quando token expõe id)
       (userId && (
         (review.usuario && String(review.usuario.id) === String(userId)) ||
-        String(review.usuarioId || review.usuario_id || review.userId || review.user_id || review.autorId || review.autor_id || review.usuario?.id || review.user?.id || '') === String(userId)
+        String(
+          review.usuarioId ||
+          review.usuario_id ||
+          review.userId ||
+          review.user_id ||
+          review.autorId ||
+          review.autor_id ||
+          review.usuario?.id ||
+          review.user?.id ||
+          ''
+        ) === String(userId)
       )) ||
-      // comparar por e-mail (quando o token só expõe email)
       (userEmail && (
         (review.emailUsuario && review.emailUsuario === userEmail) ||
         (review.email && review.email === userEmail) ||
         (review.usuario && review.usuario.email && review.usuario.email === userEmail)
       )) ||
-      // ou comparar por nickname/nome quando disponível
       (userNickname && review.nickname && userNickname === review.nickname)
     )
   )
@@ -117,6 +122,7 @@ export default function ReviewCard({ review, onUpdate, onDelete }) {
       setError('Nota deve ser entre 1 e 10.')
       return
     }
+
     if (!comentario.trim()) {
       setError('Comentário é obrigatório.')
       return
@@ -138,6 +144,7 @@ export default function ReviewCard({ review, onUpdate, onDelete }) {
 
   const handleDelete = async () => {
     setLoading(true)
+
     try {
       await deletarReview(review.id)
       onDelete?.()
@@ -157,190 +164,161 @@ export default function ReviewCard({ review, onUpdate, onDelete }) {
       year: 'numeric',
     })
     : ''
-  
+
   return (
-    <div
-      style={{
-        background: 'linear-gradient(145deg, rgba(14,20,36,0.98), rgba(7,11,20,1))',
-        border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: '16px',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        transition: 'border-color 0.2s',
-      }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(0,255,136,0.2)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'}
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <div style={{
-          width: 42, height: 42, borderRadius: '50%',
-          background: avatarCor.bg,
-          border: `1.5px solid ${avatarCor.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '0.78rem', fontWeight: 700,
-          color: avatarCor.text,
-          userSelect: 'none',
-        }}>
-          {iniciais}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'var(--text)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '200px',
-            }}>
-              {nomeExibido || 'Usuário'}
-            </span>
-
-            {isOwner && (
-              <span style={{
-                fontSize: '0.62rem',
-                fontFamily: 'JetBrains Mono, monospace',
-                color: 'var(--neon)',
-                opacity: 0.85,
-                flexShrink: 0,
-              }}>
-                (você)
-              </span>
-            )}
-          </div>
-
-          {dateStr && (
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-              {dateStr}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-          {!editing && <NotaCirculo nota={review.nota} size={48} />}
-        </div>
-      </div>
-
-      {error && <Alert type="error" message={error} onClose={() => setError('')} />}
-
-      {editing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
-              SUA NOTA
-            </div>
-            <StarPicker value={nota} onChange={setNota} />
-          </div>
-
-          <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '0.375rem' }}>
-              COMENTÁRIO
-            </div>
-            <textarea
-              className="input"
-              value={comentario}
-              onChange={e => setComentario(e.target.value)}
-              rows={3}
-              maxLength={500}
-              style={{ resize: 'vertical', fontFamily: 'DM Sans, sans-serif' }}
-            />
-            <div style={{ textAlign: 'right', fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '3px' }}>
-              {comentario.length}/500
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => { setEditing(false); setError('') }} className="btn btn-ghost" style={{ flex: 1 }}>
-              Cancelar
-            </button>
-            <button onClick={handleSave} disabled={loading} className="btn btn-primary" style={{ flex: 1 }}>
-              {loading ? <Spinner size={16} /> : 'Salvar'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div style={{ paddingLeft: '54px' }}>
-          <p
-            style={{
-              color: 'rgba(232,234,240,0.82)',
-              fontSize: '0.9rem',
-              lineHeight: 1.75,
-              whiteSpace: 'pre-wrap',
-              margin: 0,
-            }}
-          >
-            {review.comentario}
-          </p>
-
-          {(canEdit || canDelete) && (
+    <article className="rounded-[20px] border border-white/8 bg-[linear-gradient(145deg,rgba(14,20,36,0.98),rgba(7,11,20,1))] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.2)] transition duration-300 hover:border-emerald-400/20 md:p-5">
+      <div className="flex flex-col gap-4">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border font-mono text-[0.78rem] font-bold"
               style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '0.5rem',
-                marginTop: '0.75rem',
+                background: avatarCor.bg,
+                borderColor: avatarCor.border,
+                color: avatarCor.text,
               }}
             >
-              {canEdit && (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="btn btn-ghost"
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '0.4rem 0.8rem',
-                  }}
-                >
-                  Editar
-                </button>
-              )}
+              {iniciais}
+            </div>
 
-              {canDelete && (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="btn btn-danger"
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '0.4rem 0.8rem',
-                  }}
-                >
-                  Deletar
-                </button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate text-sm font-semibold text-zinc-100 sm:text-[0.95rem]">
+                  {nomeExibido || 'Usuário'}
+                </span>
+
+                {isOwner && (
+                  <span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-emerald-300">
+                    Você
+                  </span>
+                )}
+              </div>
+
+              {dateStr && (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {dateStr}
+                </p>
               )}
             </div>
-          )}
-        </div>
-      )
-      }
-
-      {confirmDelete && (
-        <div style={{
-          padding: '0.875rem 1rem',
-          background: 'rgba(255,59,92,0.07)',
-          border: '1px solid rgba(255,59,92,0.28)',
-          borderRadius: '10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.625rem',
-        }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 500 }}>
-            Tem certeza que quer deletar esta review?
-          </span>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => setConfirmDelete(false)} className="btn btn-ghost" style={{ flex: 1, fontSize: '0.8rem' }}>
-              Cancelar
-            </button>
-            <button onClick={handleDelete} disabled={loading} className="btn btn-danger" style={{ flex: 1, fontSize: '0.8rem' }}>
-              {loading ? <Spinner size={14} /> : 'Sim, deletar'}
-            </button>
           </div>
-        </div>
-      )}
-    </div>
+
+          {!editing && (
+            <div className="self-start sm:self-auto">
+              <NotaBadge nota={review.nota} />
+            </div>
+          )}
+        </header>
+
+        {error && <Alert type="error" message={error} onClose={() => setError('')} />}
+
+        {editing ? (
+          <div className="space-y-4 rounded-2xl border border-white/6 bg-white/[0.02] p-4">
+            <div>
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                Sua nota
+              </p>
+              <StarPicker value={nota} onChange={setNota} />
+            </div>
+
+            <div>
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                Comentário
+              </p>
+
+              <textarea
+                className="w-full rounded-2xl border border-white/10 bg-[#171b25] px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-400/60"
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+                rows={4}
+                maxLength={500}
+                style={{ resize: 'vertical' }}
+                placeholder="Atualize sua opinião sobre o jogo..."
+              />
+
+              <div className="mt-2 text-right text-[11px] text-zinc-500">
+                {comentario.length}/500
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => {
+                  setEditing(false)
+                  setError('')
+                  setNota(review.nota)
+                  setComentario(review.comentario)
+                }}
+                className="h-11 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-zinc-300 transition hover:bg-white/[0.06]"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-400 px-5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-60"
+              >
+                {loading ? <Spinner size={16} /> : 'Salvar alterações'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-4">
+              <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-300 sm:text-[0.95rem]">
+                {review.comentario}
+              </p>
+            </div>
+
+            {(canEdit || canDelete) && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                {canEdit && (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-zinc-300 transition hover:bg-white/[0.06]"
+                  >
+                    Editar
+                  </button>
+                )}
+
+                {canDelete && (
+                  <button
+                    onClick={() => setConfirmDelete(true)}
+                    className="h-10 rounded-xl border border-rose-500/20 bg-rose-500/8 px-4 text-sm text-rose-300 transition hover:bg-rose-500/12"
+                  >
+                    Deletar
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {confirmDelete && (
+          <div className="rounded-2xl border border-rose-500/25 bg-rose-500/8 p-4">
+            <p className="text-sm font-medium text-rose-300">
+              Tem certeza que quer deletar esta review?
+            </p>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-zinc-300 transition hover:bg-white/[0.06]"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="inline-flex h-10 items-center justify-center rounded-xl bg-rose-500 px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+              >
+                {loading ? <Spinner size={14} /> : 'Sim, deletar'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
   )
 }
