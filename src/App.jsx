@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-import { GuestRoute } from './components/ProtectedRoute'
+import { GuestRoute, AdminRoute } from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import JogoDetalhe from './pages/JogoDetalhe'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import NotFound from './pages/NotFound'
+import ImportarJogo from './pages/ImportarJogo'
 
 export default function App() {
   return (
@@ -22,6 +23,9 @@ export default function App() {
             } />
             <Route path="/registro" element={
               <GuestRoute><Registro /></GuestRoute>
+            } />
+            <Route path="/admin/importar" element={
+              <AdminRoute><ImportarJogo /></AdminRoute>
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>

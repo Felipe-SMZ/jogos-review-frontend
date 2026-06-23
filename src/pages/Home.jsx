@@ -1,20 +1,26 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listarJogos, deletarJogo, mediaNotas } from '../services/jogosService'
-import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
+import { GENEROS, PLATAFORMAS } from '../constants/enums'
 import { useAuth } from '../context/AuthContext'
 import JogoCard from '../components/JogoCard'
 import JogoForm from '../components/JogoForm'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Pagination from '../components/Pagination'
 import { SkeletonGrid } from '../components/Loading'
-import { Alert } from "../components/Alert"
+import { Alert } from '../components/Alert'
 import { extractErrorMsg } from '../utils/errorUtils'
+import {
+  getGeneroLabel,
+  getPlataformaLabel,
+  getMediaReviewsNumber,
+} from '../utils/jogoFormatters'
 
-
-const PAGE_SIZE = 9
+const PAGE_SIZE = 12
 
 export default function Home() {
   const { isAdmin } = useAuth()
+  const navigate = useNavigate()
 
   const [jogos, setJogos] = useState([])
   const [medias, setMedias] = useState({})
@@ -34,8 +40,10 @@ export default function Home() {
   const fetchJogos = useCallback(async () => {
     setLoading(true)
     setError('')
+
     try {
       const params = { page, size: PAGE_SIZE }
+
       if (filtroGenero) params.genero = filtroGenero
       if (filtroPlataforma) params.plataforma = filtroPlataforma
 
@@ -45,21 +53,29 @@ export default function Home() {
 
       setJogos(lista)
       setTotalPages(data.totalPages || 1)
-      setTotalElements(data.totalElements || lista.length)
+      setTotalElements(data.totalElements ?? lista.length)
 
-      // Fetch medias in parallel
       const mediaMap = {}
+
       await Promise.allSettled(
         lista.map(async (j) => {
           try {
             const mr = await mediaNotas(j.id)
-            const m = mr.data?.mediaNotas ?? mr.data?.media ?? mr.data?.average ?? mr.data?.mediaNota ?? null
-            mediaMap[j.id] = m
+            const raw = mr.data
+            const m =
+              raw?.mediaNotas ??
+              raw?.media ??
+              raw?.average ??
+              raw?.mediaNota ??
+              null
+
+            mediaMap[j.id] = getMediaReviewsNumber(m)
           } catch {
             mediaMap[j.id] = null
           }
         })
       )
+
       setMedias(mediaMap)
     } catch (err) {
       setError(extractErrorMsg(err))
@@ -68,7 +84,9 @@ export default function Home() {
     }
   }, [page, filtroGenero, filtroPlataforma])
 
-  useEffect(() => { fetchJogos() }, [fetchJogos])
+  useEffect(() => {
+    fetchJogos()
+  }, [fetchJogos])
 
   const handleFilterChange = (setter) => (e) => {
     setter(e.target.value)
@@ -76,111 +94,182 @@ export default function Home() {
   }
 
   const handleDelete = async () => {
-    await deletarJogo(deleteJogo.id)
-    setDeleteJogo(null)
-    fetchJogos()
+    try {
+      if (deleteJogo?.id) {
+        await deletarJogo(deleteJogo.id)
+      }
+    } finally {
+      setDeleteJogo(null)
+      fetchJogos()
+    }
   }
 
-  return (
-    <div className="page-container">
-      {/* Hero */}
-      <div className="animate-fade-up" style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', color: 'var(--neon)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-              // Biblioteca de jogos
-            </p>
-            <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)', color: 'var(--text)' }}>
-              TODOS OS <span className="neon-text">JOGOS</span>
-            </h1>
-            {!loading && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                {totalElements} {totalElements === 1 ? 'jogo encontrado' : 'jogos encontrados'}
-              </p>
-            )}
-          </div>
+  const temFiltro = Boolean(filtroGenero || filtroPlataforma)
 
-          {isAdmin && (
+  return (
+    <div className="mx-auto w-full max-w-[1400px] px-6 pb-16 pt-8 md:px-10">
+      <div className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.22em] text-emerald-400">
+            // Biblioteca de jogos
+          </p>
+
+          <h1 className="font-['Bebas_Neue'] text-[clamp(2.7rem,5vw,4.6rem)] leading-none tracking-[0.06em] text-white">
+            TODOS OS <span className="text-emerald-400">JOGOS</span>
+          </h1>
+
+          {!loading && (
+            <p className="mt-3 text-sm text-zinc-500">
+              <span className="font-semibold text-zinc-200">{totalElements}</span>{' '}
+              jogo{totalElements !== 1 ? 's' : ''} encontrado{totalElements !== 1 ? 's' : ''}
+            </p>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => { setEditJogo(null); setFormOpen(true) }}
-              className="btn btn-primary animate-fade-up-delay-1"
+              onClick={() => navigate('/admin/importar')}
+              className="h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-5 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.06]"
+            >
+              ↓ Importar IGDB
+            </button>
+
+            <button
+              onClick={() => {
+                setEditJogo(null)
+                setFormOpen(true)
+              }}
+              className="h-12 rounded-2xl bg-emerald-400 px-5 text-sm font-bold text-black transition hover:brightness-110"
             >
               + Novo Jogo
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="animate-fade-up-delay-1" style={{
-        display: 'flex', gap: '0.75rem', flexWrap: 'wrap',
-        padding: '1rem', background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: '2px', marginBottom: '1.5rem',
-      }}>
-        <select
-          className="input"
-          value={filtroGenero}
-          onChange={handleFilterChange(setFiltroGenero)}
-          style={{ flex: '1', minWidth: '180px' }}
-        >
-          <option value="">Todos os gêneros</option>
-          {GENEROS.map(g => <option key={g} value={g}>{GENERO_LABEL[g]}</option>)}
-        </select>
-
-        <select
-          className="input"
-          value={filtroPlataforma}
-          onChange={handleFilterChange(setFiltroPlataforma)}
-          style={{ flex: '1', minWidth: '180px' }}
-        >
-          <option value="">Todas as plataformas</option>
-          {PLATAFORMAS.map(p => <option key={p} value={p}>{PLATAFORMA_LABEL[p]}</option>)}
-        </select>
-
-        {(filtroGenero || filtroPlataforma) && (
-          <button
-            className="btn btn-ghost"
-            onClick={() => { setFiltroGenero(''); setFiltroPlataforma(''); setPage(0) }}
-          >
-            Limpar filtros
-          </button>
+          </div>
         )}
       </div>
 
-      {/* Error */}
-      {error && <Alert type="error" message={error} style={{ marginBottom: '1rem' }} />}
+      <div className="mb-8 rounded-3xl border border-white/6 bg-white/[0.02] p-4 backdrop-blur-sm">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px] xl:items-end">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Gênero
+              </label>
+              <select
+                className="h-12 w-full rounded-2xl border border-white/10 bg-[#171b25] px-4 text-sm text-white outline-none transition focus:border-emerald-400/70"
+                value={filtroGenero}
+                onChange={handleFilterChange(setFiltroGenero)}
+              >
+                <option value="">Todos os gêneros</option>
+                {GENEROS.map((g) => (
+                  <option key={g} value={g}>
+                    {getGeneroLabel(g)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      {/* Grid */}
+            <div>
+              <label className="mb-2 block font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                Plataforma
+              </label>
+              <select
+                className="h-12 w-full rounded-2xl border border-white/10 bg-[#171b25] px-4 text-sm text-white outline-none transition focus:border-emerald-400/70"
+                value={filtroPlataforma}
+                onChange={handleFilterChange(setFiltroPlataforma)}
+              >
+                <option value="">Todas as plataformas</option>
+                {PLATAFORMAS.map((p) => (
+                  <option key={p} value={p}>
+                    {getPlataformaLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex h-12 items-center justify-between rounded-2xl border border-white/6 bg-black/20 px-4 text-sm text-zinc-500">
+            {temFiltro ? (
+              <>
+                <span>{totalElements} resultado(s) filtrados</span>
+                <button
+                  onClick={() => {
+                    setFiltroGenero('')
+                    setFiltroPlataforma('')
+                    setPage(0)
+                  }}
+                  className="text-emerald-300 transition hover:text-emerald-200"
+                >
+                  Limpar
+                </button>
+              </>
+            ) : (
+              <span>Explorando catálogo completo</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <Alert
+          type="error"
+          message={error}
+          style={{ marginBottom: '1rem' }}
+        />
+      )}
+
       {loading ? (
         <SkeletonGrid count={PAGE_SIZE} />
       ) : jogos.length === 0 ? (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          minHeight: '300px', gap: '0.75rem',
-          border: '1px dashed var(--border)', borderRadius: '2px',
-        }}>
-          <span style={{ fontSize: '2rem' }}>🎮</span>
-          <p style={{ color: 'var(--text-dim)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem' }}>
-            Nenhum jogo encontrado
-          </p>
-          {isAdmin && (
-            <button onClick={() => { setEditJogo(null); setFormOpen(true) }} className="btn btn-outline" style={{ marginTop: '0.5rem' }}>
-              Cadastrar primeiro jogo
-            </button>
-          )}
+        <div className="rounded-3xl border border-dashed border-white/8 bg-white/[0.02] px-6 py-16 text-center">
+          <div className="mx-auto max-w-md">
+            <p className="font-['Bebas_Neue'] text-3xl tracking-[0.06em] text-zinc-200">
+              {temFiltro ? 'NENHUM JOGO ENCONTRADO' : 'CATÁLOGO VAZIO'}
+            </p>
+
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              {temFiltro
+                ? 'Tente alterar os filtros para encontrar outros títulos.'
+                : 'Comece criando um jogo manualmente ou importando da IGDB.'}
+            </p>
+
+            {isAdmin && !temFiltro && (
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => navigate('/admin/importar')}
+                  className="h-12 rounded-2xl border border-white/10 bg-white/[0.03] px-5 text-sm text-zinc-300 transition hover:bg-white/[0.06]"
+                >
+                  Importar da IGDB
+                </button>
+
+                <button
+                  onClick={() => {
+                    setEditJogo(null)
+                    setFormOpen(true)
+                  }}
+                  className="h-12 rounded-2xl bg-emerald-400 px-5 text-sm font-bold text-black transition hover:brightness-110"
+                >
+                  Criar primeiro jogo
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: '1rem',
-        }}>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {jogos.map((jogo, i) => (
-            <div key={jogo.id} className={`animate-fade-up`} style={{ animationDelay: `${i * 0.05}s` }}>
+            <div
+              key={jogo.id}
+              className="animate-fade-up"
+              style={{ animationDelay: `${i * 0.03}s` }}
+            >
               <JogoCard
                 jogo={jogo}
                 media={medias[jogo.id]}
-                onEdit={(j) => { setEditJogo(j); setFormOpen(true) }}
+                onEdit={(j) => {
+                  setEditJogo(j)
+                  setFormOpen(true)
+                }}
                 onDelete={setDeleteJogo}
               />
             </div>
@@ -190,7 +279,6 @@ export default function Home() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      {/* Admin modals */}
       <JogoForm
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
@@ -203,7 +291,7 @@ export default function Home() {
         onClose={() => setDeleteJogo(null)}
         onConfirm={handleDelete}
         title="Deletar Jogo"
-        message={`Tem certeza que quer deletar "${deleteJogo?.nome}"? Todas as reviews serão removidas.`}
+        message={`Deletar "${deleteJogo?.nome}"? Todas as reviews também serão removidas.`}
       />
     </div>
   )
