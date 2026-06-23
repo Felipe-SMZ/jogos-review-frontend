@@ -16,8 +16,8 @@ export const buscarJogosIgdb = (termoBusca) =>
  * Endpoint: POST /admin/jogos/importar
  * Requer ROLE_ADMIN.
  *
- * @param {{ igdbId: number, genero: string, plataforma: string }} data
+ * @param {{ igdbId: number, genero: string, plataforma: string }} body
  * @returns {Promise<AxiosResponse<JogoResponseDto>>} - 201 Created com o jogo criado
  */
-export const importarJogoIgdb = (data) =>
-  api.post('/admin/jogos/importar', data)
+export const importarJogoIgdb = (body) =>
+  api.post('/admin/jogos/importar', body)
