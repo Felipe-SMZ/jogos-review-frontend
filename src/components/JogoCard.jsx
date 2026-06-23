@@ -45,8 +45,7 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
       }}
     >
       {/* ── HERO IMAGE 16/9 ── */}
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', overflow: 'hidden', flexShrink: 0 }}>
-
+      <div style={{ position: 'relative', aspectRatio: '2 / 3', overflow: 'hidden', flexShrink: 0 }}>
         {image ? (
           <img
             src={image}
@@ -57,6 +56,7 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
               position: 'absolute', inset: 0,
               width: '100%', height: '100%',
               objectFit: 'cover',
+              objectPosition: 'center top', 
               transition: 'transform 0.4s ease',
               transform: hovered ? 'scale(1.04)' : 'scale(1)',
             }}
