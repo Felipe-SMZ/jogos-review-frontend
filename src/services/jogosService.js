@@ -1,19 +1,25 @@
 import api from './api'
 
-export const listarJogos = (params = {}) =>
-  api.get('/jogos', { params })
+export const listarJogos = (params = {}) => {
+  return api.get('/jogos', { params })
+}
 
-export const buscarJogo = (id) =>
-  api.get(`/jogos/${id}`)
+export const buscarJogoPorId = (id) => {
+  return api.get(`/jogos/${id}`)
+}
 
-export const criarJogo = (data) =>
-  api.post('/jogos', data)
+export const criarJogo = (payload) => {
+  return api.post('/admin/jogos', payload)
+}
 
-export const editarJogo = (id, data) =>
-  api.put(`/jogos/${id}`, data)
+export const editarJogo = (id, payload) => {
+  return api.put(`/admin/jogos/${id}`, payload)
+}
 
-export const deletarJogo = (id) =>
-  api.delete(`/jogos/${id}`)
+export const deletarJogo = (id) => {
+  return api.delete(`/admin/jogos/${id}`)
+}
 
-export const mediaNotas = (id) =>
-  api.get(`/jogos/${id}/media`)
+export const mediaNotas = (id) => {
+  return api.get(`/reviews/jogo/${id}/media`)
+}
