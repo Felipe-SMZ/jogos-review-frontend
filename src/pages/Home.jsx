@@ -4,6 +4,7 @@ import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constan
 import { useAuth } from '../context/AuthContext'
 import JogoCard from '../components/JogoCard'
 import JogoForm from '../components/JogoForm'
+import IgdbImportModal from '../components/IgdbImportModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Pagination from '../components/Pagination'
 import { SkeletonGrid } from '../components/Loading'
@@ -30,6 +31,7 @@ export default function Home() {
   const [formOpen, setFormOpen] = useState(false)
   const [editJogo, setEditJogo] = useState(null)
   const [deleteJogo, setDeleteJogo] = useState(null)
+  const [igdbOpen, setIgdbOpen] = useState(false)
 
   const fetchJogos = useCallback(async () => {
     setLoading(true)
@@ -101,12 +103,20 @@ export default function Home() {
           </div>
 
           {isAdmin && (
-            <button
-              onClick={() => { setEditJogo(null); setFormOpen(true) }}
-              className="btn btn-primary animate-fade-up-delay-1"
-            >
-              + Novo Jogo
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setIgdbOpen(true)}
+                className="btn btn-ghost animate-fade-up-delay-1"
+              >
+                ⬇ Importar da IGDB
+              </button>
+              <button
+                onClick={() => { setEditJogo(null); setFormOpen(true) }}
+                className="btn btn-primary animate-fade-up-delay-1"
+              >
+                + Novo Jogo
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -195,6 +205,12 @@ export default function Home() {
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         jogo={editJogo}
+        onSuccess={fetchJogos}
+      />
+
+      <IgdbImportModal
+        isOpen={igdbOpen}
+        onClose={() => setIgdbOpen(false)}
         onSuccess={fetchJogos}
       />
 
