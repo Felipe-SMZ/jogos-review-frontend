@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listarJogos, deletarJogo, mediaNotas } from '../services/jogosService'
 import { GENEROS, PLATAFORMAS, GENERO_LABEL, PLATAFORMA_LABEL } from '../constants/enums'
 import { useAuth } from '../context/AuthContext'
 import JogoCard from '../components/JogoCard'
 import JogoForm from '../components/JogoForm'
-import IgdbImportModal from '../components/IgdbImportModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Pagination from '../components/Pagination'
 import { SkeletonGrid } from '../components/Loading'
-import { Alert } from "../components/Alert"
+import { Alert } from '../components/Alert'
 import { extractErrorMsg } from '../utils/errorUtils'
-
 
 const PAGE_SIZE = 9
 
 export default function Home() {
   const { isAdmin } = useAuth()
+  const navigate = useNavigate()
 
   const [jogos, setJogos] = useState([])
   const [medias, setMedias] = useState({})
@@ -31,7 +31,6 @@ export default function Home() {
   const [formOpen, setFormOpen] = useState(false)
   const [editJogo, setEditJogo] = useState(null)
   const [deleteJogo, setDeleteJogo] = useState(null)
-  const [igdbOpen, setIgdbOpen] = useState(false)
 
   const fetchJogos = useCallback(async () => {
     setLoading(true)
@@ -49,7 +48,6 @@ export default function Home() {
       setTotalPages(data.totalPages || 1)
       setTotalElements(data.totalElements || lista.length)
 
-      // Fetch medias in parallel
       const mediaMap = {}
       await Promise.allSettled(
         lista.map(async (j) => {
@@ -87,9 +85,16 @@ export default function Home() {
     <div className="page-container">
       {/* Hero */}
       <div className="animate-fade-up" style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-end',
+          justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem',
+        }}>
           <div>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', color: 'var(--neon)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+            <p style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem',
+              color: 'var(--neon)', letterSpacing: '0.15em',
+              textTransform: 'uppercase', marginBottom: '0.25rem',
+            }}>
               // Biblioteca de jogos
             </p>
             <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 4rem)', color: 'var(--text)' }}>
@@ -104,8 +109,9 @@ export default function Home() {
 
           {isAdmin && (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {/* Navega para a página de importação em vez de abrir modal */}
               <button
-                onClick={() => setIgdbOpen(true)}
+                onClick={() => navigate('/admin/importar')}
                 className="btn btn-ghost animate-fade-up-delay-1"
               >
                 ⬇ Importar da IGDB
@@ -124,8 +130,9 @@ export default function Home() {
       {/* Filters */}
       <div className="animate-fade-up-delay-1" style={{
         display: 'flex', gap: '0.75rem', flexWrap: 'wrap',
-        padding: '1rem', background: 'var(--surface)', border: '1px solid var(--border)',
-        borderRadius: '2px', marginBottom: '1.5rem',
+        padding: '1rem', background: 'var(--surface)',
+        border: '1px solid var(--border)', borderRadius: '2px',
+        marginBottom: '1.5rem',
       }}>
         <select
           className="input"
@@ -165,7 +172,8 @@ export default function Home() {
         <SkeletonGrid count={PAGE_SIZE} />
       ) : jogos.length === 0 ? (
         <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
           minHeight: '300px', gap: '0.75rem',
           border: '1px dashed var(--border)', borderRadius: '2px',
         }}>
@@ -174,7 +182,11 @@ export default function Home() {
             Nenhum jogo encontrado
           </p>
           {isAdmin && (
-            <button onClick={() => { setEditJogo(null); setFormOpen(true) }} className="btn btn-outline" style={{ marginTop: '0.5rem' }}>
+            <button
+              onClick={() => { setEditJogo(null); setFormOpen(true) }}
+              className="btn btn-outline"
+              style={{ marginTop: '0.5rem' }}
+            >
               Cadastrar primeiro jogo
             </button>
           )}
@@ -186,7 +198,7 @@ export default function Home() {
           gap: '1rem',
         }}>
           {jogos.map((jogo, i) => (
-            <div key={jogo.id} className={`animate-fade-up`} style={{ animationDelay: `${i * 0.05}s` }}>
+            <div key={jogo.id} className="animate-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
               <JogoCard
                 jogo={jogo}
                 media={medias[jogo.id]}
@@ -200,17 +212,10 @@ export default function Home() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
-      {/* Admin modals */}
       <JogoForm
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
         jogo={editJogo}
-        onSuccess={fetchJogos}
-      />
-
-      <IgdbImportModal
-        isOpen={igdbOpen}
-        onClose={() => setIgdbOpen(false)}
         onSuccess={fetchJogos}
       />
 
