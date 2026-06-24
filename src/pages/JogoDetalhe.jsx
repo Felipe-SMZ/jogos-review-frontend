@@ -9,11 +9,11 @@ import ReviewFormCard from '../components/ReviewFormCard'
 import { extractErrorMsg } from '../utils/errorUtils'
 import {
   getGeneroLabel,
-  getPlataformaLabel,
   getJogoImageUrl,
   getJogoSummary,
   getJogoRatingNumber,
   getCommunityRatingColor,
+  getJogoPlataformasLabels,
 } from '../utils/jogoFormatters'
 
 function getScoreLabel(value, scale = 10) {
@@ -229,6 +229,7 @@ export default function JogoDetalhe() {
 
   const imageUrl = useMemo(() => getJogoImageUrl(jogo?.imageUrl), [jogo])
   const resumo = useMemo(() => getJogoSummary(jogo?.summary), [jogo])
+  const plataformas = useMemo(() => getJogoPlataformasLabels(jogo), [jogo])
 
   const ratingIgdb = getJogoRatingNumber(jogo?.rating)
 
@@ -303,9 +304,20 @@ export default function JogoDetalhe() {
           <div className="p-5 sm:p-7 lg:p-8 xl:p-10">
             <div className="flex flex-col gap-5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-300">
-                  {getPlataformaLabel(jogo.plataforma)}
-                </span>
+                {plataformas.length > 0 ? (
+                  plataformas.map((plataforma) => (
+                    <span
+                      key={plataforma}
+                      className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-300"
+                    >
+                      {plataforma}
+                    </span>
+                  ))
+                ) : (
+                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-300">
+                    Outros
+                  </span>
+                )}
 
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">
                   {getGeneroLabel(jogo.genero)}

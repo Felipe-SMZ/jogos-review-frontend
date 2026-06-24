@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   getGeneroLabel,
-  getPlataformaLabel,
   getJogoImageUrl,
   getJogoRatingNumber,
   getMediaReviewsLabel,
   getCommunityRatingColor,
+  getJogoPlataformasLabels,
 } from '../utils/jogoFormatters'
 
 function CardImageFallback({ nome }) {
@@ -51,6 +51,7 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
   const jogoRating = getJogoRatingNumber(jogo.rating)
   const mediaLabel = getMediaReviewsLabel(media)
   const mediaColor = getCommunityRatingColor(media)
+  const plataformas = getJogoPlataformasLabels(jogo)
 
   const notaPrincipal =
     media !== null && media !== undefined
@@ -132,9 +133,20 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
 
         <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
           <div className="mb-3 flex flex-wrap gap-2">
-            <span className="rounded-md border border-white/10 bg-black/28 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-200 backdrop-blur-sm">
-              {getPlataformaLabel(jogo.plataforma)}
-            </span>
+            {plataformas.length > 0 ? (
+              plataformas.map((plataforma) => (
+                <span
+                  key={plataforma}
+                  className="rounded-md border border-white/10 bg-black/28 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-200 backdrop-blur-sm"
+                >
+                  {plataforma}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-md border border-white/10 bg-black/28 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-200 backdrop-blur-sm">
+                Outros
+              </span>
+            )}
 
             <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-300 backdrop-blur-sm">
               {getGeneroLabel(jogo.genero)}

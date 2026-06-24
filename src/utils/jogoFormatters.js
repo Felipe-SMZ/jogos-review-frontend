@@ -8,7 +8,7 @@ export function formatEnumFallback(value) {
   return String(value)
     .toLowerCase()
     .split('_')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
 
@@ -20,6 +20,26 @@ export function getGeneroLabel(value) {
 export function getPlataformaLabel(value) {
   if (!value) return 'Outros'
   return PLATAFORMA_LABEL[value] || formatEnumFallback(value)
+}
+
+export function normalizePlataformas(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.filter(Boolean))]
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return [value]
+  }
+
+  return []
+}
+
+export function getJogoPlataformas(jogo) {
+  return normalizePlataformas(jogo?.plataformas ?? jogo?.plataforma)
+}
+
+export function getJogoPlataformasLabels(jogo) {
+  return getJogoPlataformas(jogo).map(getPlataformaLabel)
 }
 
 export function getJogoImageUrl(url) {
