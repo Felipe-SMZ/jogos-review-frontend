@@ -6,7 +6,7 @@ import api from './api'
  * Requer ROLE_ADMIN (o interceptor do api.js injeta o token automaticamente).
  *
  * @param {string} termoBusca - Termo de busca (ex: "zelda", "god of war")
- * @returns {Promise<AxiosResponse<IgdbGameDto[]>>}
+ * @returns {Promise}
  */
 export const buscarJogosIgdb = (termoBusca) =>
   api.get('/admin/jogos/buscar', { params: { termoBusca } })
@@ -16,8 +16,8 @@ export const buscarJogosIgdb = (termoBusca) =>
  * Endpoint: POST /admin/jogos/importar
  * Requer ROLE_ADMIN.
  *
- * @param {{ igdbId: number, genero: string, plataforma: string }} body
- * @returns {Promise<AxiosResponse<JogoResponseDto>>} - 201 Created com o jogo criado
+ * @param {{ igdbId: number, genero: string, plataformas: string[] }} body
+ * @returns {Promise}
  */
 export const importarJogoIgdb = (body) =>
   api.post('/admin/jogos/importar', body)

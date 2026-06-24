@@ -8,19 +8,9 @@ import { GENEROS, PLATAFORMAS } from '../constants/enums'
 import {
   getGeneroLabel,
   getPlataformaLabel,
+  getJogoPlataformas,
+  normalizePlataformas,
 } from '../utils/jogoFormatters'
-
-function normalizePlataformas(value) {
-  if (Array.isArray(value)) {
-    return [...new Set(value.filter(Boolean))]
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    return [value]
-  }
-
-  return []
-}
 
 function buildInitialForm(jogo) {
   if (!jogo) {
@@ -37,7 +27,7 @@ function buildInitialForm(jogo) {
   return {
     nome: jogo.nome ?? '',
     genero: jogo.genero ?? '',
-    plataformas: normalizePlataformas(jogo.plataformas ?? jogo.plataforma),
+    plataformas: getJogoPlataformas(jogo),
     imageUrl: jogo.imageUrl ?? '',
     summary: jogo.summary ?? '',
     rating: jogo.rating ?? '',
@@ -235,11 +225,10 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
                       return (
                         <label
                           key={p}
-                          className={`flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
-                            checked
+                          className={`flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked
                               ? 'border-emerald-400/40 bg-emerald-400/10 text-white'
                               : 'border-white/10 bg-[#171b25] text-zinc-300 hover:border-white/20'
-                          }`}
+                            }`}
                         >
                           <input
                             type="checkbox"
