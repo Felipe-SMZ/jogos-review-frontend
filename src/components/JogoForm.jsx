@@ -8,6 +8,8 @@ import { GENEROS, PLATAFORMAS } from '../constants/enums'
 import {
   getGeneroLabel,
   getPlataformaLabel,
+  getJogoPlataformas,
+  normalizePlataformas,
 } from '../utils/jogoFormatters'
 
 function buildInitialForm(jogo) {
@@ -15,7 +17,7 @@ function buildInitialForm(jogo) {
     return {
       nome: '',
       genero: '',
-      plataforma: '',
+      plataformas: [],
       imageUrl: '',
       summary: '',
       rating: '',
@@ -25,7 +27,7 @@ function buildInitialForm(jogo) {
   return {
     nome: jogo.nome ?? '',
     genero: jogo.genero ?? '',
-    plataforma: jogo.plataforma ?? '',
+    plataformas: getJogoPlataformas(jogo),
     imageUrl: jogo.imageUrl ?? '',
     summary: jogo.summary ?? '',
     rating: jogo.rating ?? '',
@@ -79,11 +81,31 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  const handlePlataformaToggle = (plataforma) => {
+    setForm((current) => {
+      const selecionadas = normalizePlataformas(current.plataformas)
+
+      if (selecionadas.includes(plataforma)) {
+        return {
+          ...current,
+          plataformas: selecionadas.filter((item) => item !== plataforma),
+        }
+      }
+
+      return {
+        ...current,
+        plataformas: [...selecionadas, plataforma],
+      }
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!form.nome.trim() || !form.genero || !form.plataforma) {
-      setError('Preencha nome, gênero e plataforma.')
+    const plataformasSelecionadas = normalizePlataformas(form.plataformas)
+
+    if (!form.nome.trim() || !form.genero || !plataformasSelecionadas.length) {
+      setError('Preencha nome, gênero e pelo menos uma plataforma.')
       return
     }
 
@@ -110,7 +132,7 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
     const payload = {
       nome: form.nome.trim(),
       genero: form.genero,
-      plataforma: form.plataforma,
+      plataformas: plataformasSelecionadas,
       imageUrl: cleanedImageUrl || null,
       summary: form.summary?.trim() ? form.summary.trim() : null,
       rating: parsedRating,
@@ -175,7 +197,7 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
                 <FieldHint>Use o nome oficial ou o título mais reconhecido pelos usuários.</FieldHint>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label required>Gênero</Label>
                   <select
@@ -194,20 +216,33 @@ export default function JogoForm({ isOpen, onClose, jogo, onSuccess }) {
                 </div>
 
                 <div>
-                  <Label required>Plataforma</Label>
-                  <select
-                    className="h-12 w-full rounded-xl border border-white/10 bg-[#171b25] px-4 text-sm text-white outline-none transition focus:border-emerald-400/70 focus:ring-2 focus:ring-emerald-400/10"
-                    name="plataforma"
-                    value={form.plataforma}
-                    onChange={handleChange}
-                  >
-                    <option value="">Selecione a plataforma...</option>
-                    {PLATAFORMAS.map((p) => (
-                      <option key={p} value={p}>
-                        {getPlataformaLabel(p)}
-                      </option>
-                    ))}
-                  </select>
+                  <Label required>Plataformas</Label>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {PLATAFORMAS.map((p) => {
+                      const checked = (form.plataformas || []).includes(p)
+
+                      return (
+                        <label
+                          key={p}
+                          className={`flex min-h-[48px] items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${checked
+                              ? 'border-emerald-400/40 bg-emerald-400/10 text-white'
+                              : 'border-white/10 bg-[#171b25] text-zinc-300 hover:border-white/20'
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handlePlataformaToggle(p)}
+                            className="h-4 w-4 accent-emerald-400"
+                          />
+                          <span>{getPlataformaLabel(p)}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+
+                  <FieldHint>Selecione uma ou mais plataformas compatíveis com o jogo.</FieldHint>
                 </div>
               </div>
             </div>

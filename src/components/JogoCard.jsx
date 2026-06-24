@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   getGeneroLabel,
-  getPlataformaLabel,
   getJogoImageUrl,
   getJogoRatingNumber,
   getMediaReviewsLabel,
   getCommunityRatingColor,
+  getJogoPlataformasLabels,
 } from '../utils/jogoFormatters'
 
 function CardImageFallback({ nome }) {
@@ -44,6 +44,12 @@ function getNotaQualitativa(label, media, jogoRating) {
   return 'Sem nota'
 }
 
+function getPlataformasResumo(plataformas) {
+  if (!plataformas.length) return 'Outros'
+  if (plataformas.length === 1) return plataformas[0]
+  return `${plataformas.length} plataformas`
+}
+
 export default function JogoCard({ jogo, media, onEdit, onDelete }) {
   const { isAdmin } = useAuth()
 
@@ -51,6 +57,9 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
   const jogoRating = getJogoRatingNumber(jogo.rating)
   const mediaLabel = getMediaReviewsLabel(media)
   const mediaColor = getCommunityRatingColor(media)
+  const plataformas = getJogoPlataformasLabels(jogo)
+  const plataformasResumo = getPlataformasResumo(plataformas)
+  const generoLabel = getGeneroLabel(jogo.genero)
 
   const notaPrincipal =
     media !== null && media !== undefined
@@ -59,11 +68,16 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
         ? { label: 'IGDB', value: jogoRating.toFixed(0), color: '#22c55e' }
         : { label: 'Sem nota', value: '—', color: '#8b93a7' }
 
-  const origem = jogoRating !== null ? 'Importado da base' : 'Registro manual'
   const notaQualitativa = getNotaQualitativa(notaPrincipal.label, media, jogoRating)
 
   return (
-    <article className="group flex h-full min-h-[455px] flex-col overflow-hidden rounded-[26px] border border-white/8 bg-[#111722] shadow-[0_12px_34px_rgba(0,0,0,0.24)] transition duration-300 hover:-translate-y-1 hover:border-emerald-400/20 hover:shadow-[0_18px_50px_rgba(0,0,0,0.34)]">
+    <article className="group relative flex h-full min-h-[455px] cursor-pointer flex-col overflow-hidden rounded-[26px] border border-white/8 bg-[#111722] shadow-[0_12px_34px_rgba(0,0,0,0.24)] transition duration-300 hover:-translate-y-1 hover:border-emerald-400/20 hover:shadow-[0_18px_50px_rgba(0,0,0,0.34)]">
+      <Link
+        to={`/jogos/${jogo.id}`}
+        aria-label={`Ver reviews de ${jogo.nome}`}
+        className="absolute inset-0 z-20 rounded-[26px]"
+      />
+
       <div className="relative h-[310px] overflow-hidden bg-[#151b25]">
         {image ? (
           <img
@@ -103,14 +117,15 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
         </div>
 
         {isAdmin && (
-          <div className="absolute left-4 top-4 z-20 flex gap-2 opacity-0 transition duration-200 group-hover:opacity-100">
+          <div className="absolute left-4 top-4 z-30 flex gap-2 opacity-0 transition duration-200 group-hover:opacity-100">
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault()
+                e.stopPropagation()
                 onEdit?.(jogo)
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/60 text-zinc-300 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+              className="relative z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/60 text-zinc-300 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
               title="Editar"
             >
               ✎
@@ -120,9 +135,10 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
               type="button"
               onClick={(e) => {
                 e.preventDefault()
+                e.stopPropagation()
                 onDelete?.(jogo)
               }}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/20 bg-black/60 text-rose-400 backdrop-blur-md transition hover:bg-rose-500/10"
+              className="relative z-30 flex h-9 w-9 items-center justify-center rounded-xl border border-rose-500/20 bg-black/60 text-rose-400 backdrop-blur-md transition hover:bg-rose-500/10"
               title="Deletar"
             >
               ✕
@@ -130,14 +146,10 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 z-10 px-4 pb-4">
+        <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-md border border-white/10 bg-black/28 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-200 backdrop-blur-sm">
-              {getPlataformaLabel(jogo.plataforma)}
-            </span>
-
-            <span className="rounded-md border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-emerald-300 backdrop-blur-sm">
-              {getGeneroLabel(jogo.genero)}
+              {plataformasResumo}
             </span>
           </div>
 
@@ -147,42 +159,66 @@ export default function JogoCard({ jogo, media, onEdit, onDelete }) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
-        <div className="grid grid-cols-2 gap-4 border-t border-white/6 pt-3">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-              {notaPrincipal.label === 'Comunidade' ? 'Comunidade' : 'IGDB'}
-            </p>
+      <div className="relative flex flex-1 flex-col px-4 pb-4 pt-3">
+        <div className="overflow-hidden rounded-2xl border border-white/6 bg-white/[0.02] transition-all duration-300">
+          <div className="grid grid-cols-2 gap-4 px-4 py-3">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                {notaPrincipal.label === 'Comunidade' ? 'Comunidade' : 'IGDB'}
+              </p>
 
-            <p
-              className="mt-1 text-[2rem] font-black leading-none tracking-[-0.03em]"
-              style={{ color: notaPrincipal.color }}
-            >
-              {notaPrincipal.value}
-            </p>
+              <p
+                className="mt-1 text-[2rem] font-black leading-none tracking-[-0.03em]"
+                style={{ color: notaPrincipal.color }}
+              >
+                {notaPrincipal.value}
+              </p>
 
-            <p className="mt-1 text-sm text-zinc-400">
-              {notaQualitativa}
-            </p>
+              <p className="mt-1 text-sm text-zinc-400">
+                {notaQualitativa}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
+                Gênero
+              </p>
+
+              <div className="mt-2 flex justify-end">
+                <span className="inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  {generoLabel}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="text-right">
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-zinc-500">
-              Origem
+          <div className="max-h-0 overflow-hidden border-t border-transparent px-4 transition-all duration-300 group-hover:max-h-44 group-hover:border-white/6 group-hover:py-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+              Plataformas
             </p>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-300">
-              {origem}
-            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {plataformas.map((plataforma) => (
+                <span
+                  key={plataforma}
+                  className="rounded-md border border-white/8 bg-white/[0.04] px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-zinc-300"
+                >
+                  {plataforma}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
-        <Link
-          to={`/jogos/${jogo.id}`}
-          className="mt-4 inline-flex min-h-[48px] items-center justify-center rounded-2xl border border-emerald-400/18 bg-emerald-400/10 px-4 text-sm font-bold text-zinc-100 transition hover:border-emerald-400/30 hover:bg-emerald-400/14 hover:text-white"
-        >
-          Ver Reviews
-        </Link>
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <span className="font-medium text-zinc-400 transition group-hover:text-zinc-200">
+            Clique para ver reviews
+          </span>
+
+          <span className="translate-x-0 text-emerald-300 transition duration-300 group-hover:translate-x-1 group-hover:text-emerald-200">
+            →
+          </span>
+        </div>
       </div>
     </article>
   )
